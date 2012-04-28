@@ -17,12 +17,11 @@ extra-source-files:
 executable typhon
   default-language: Haskell2010
   main-is:          Main.hs
-  build-depends:    base >= 3 && < 5
-                  , ghc-prim
-                  , regex-compat
-                  , http-conduit
-                  , utf8-string
+  hs-source-dirs:   src
+  build-depends:    base >= 4.3 && < 5
                   , bytestring
-                  , vector
+                  , text
+                  , time
+                  , amqp
                   , attoparsec
                   , aeson
