@@ -7,40 +7,52 @@ import System.Exit        (ExitCode(..), exitWith)
 import System.Console.GetOpt
 import Data.Maybe         (fromMaybe)
 
+main :: IO ()
 main = do
     args <- getArgs
     let (actions, nonOpts, msgs) = getOpt RequireOrder options args
     opts <- foldl (>>=) (return defaultOptions) actions
-    let Options { optInput  = input,
-                  optOutput = output } = opts
+    let Options { optName = input,
+                  optType = output } = opts
     input >>= output
 
 data Options = Options
-    { optInput  :: IO String
-    , optOutput :: String -> IO ()
+    { optName :: IO String
+    , optType :: String -> IO ()
     }
 
 defaultOptions :: Options
 defaultOptions = Options
-    { optInput  = getContents
-    , optOutput = putStr
+    { optName = getContents -- "testopt"
+    , optType = putStr -- "testtype"
     }
 
 options :: [OptDescr (Options -> IO Options)]
 options =
-    [ Option ['v'] ["version"] (NoArg showVersion)         "show version number"
-    , Option ['i'] ["input"]   (ReqArg readInput "FILE")   "input file to read"
-    , Option ['o'] ["output"]  (ReqArg writeOutput "FILE") "output file to write"
+    [ Option ['u'] ["usage"]   (NoArg showUsage)       "show this message"
+    , Option ['v'] ["version"] (NoArg showVersion)     "show version number"
+    , Option ['n'] ["name"]    (ReqArg appName "NAME") "input file to read"
+    , Option ['t'] ["type"]    (ReqArg appType "TYPE") "output file to write"
     ]
+
+header :: String
+header = "Usage: typhon [OPTION...]"
+
+showUsage :: a -> IO Options
+showUsage _ = do
+    putStrLn $ usageInfo header options
+    exitWith ExitSuccess
+
+version :: String
+version = "0.1"
 
 showVersion :: a -> IO Options
 showVersion _ = do
-    putStrLn "Commandline example 0.1"
+    putStrLn $ "Typhon " ++ version
     exitWith ExitSuccess
 
-readInput :: String -> Options -> IO Options
-readInput arg opt = return opt { optInput = readFile arg }
+appName :: String -> Options -> IO Options
+appName arg opt = return opt { optName = readFile arg }
 
-writeOutput :: String -> Options -> IO Options
-writeOutput arg opt = return opt { optOutput = writeFile arg }
-
+appType :: String -> Options -> IO Options
+appType arg opt = return opt { optType = writeFile arg }
