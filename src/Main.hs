@@ -5,7 +5,11 @@ module Main (
     ) where
 
 import System.Console.CmdArgs
-import System.Exit        (ExitCode(..), exitWith)
+import Control.Concurrent
+import Control.Concurrent.Chan
+
+version :: String
+version = "0.1"
 
 data Options = Options
     { optName :: String
@@ -19,13 +23,35 @@ options = Options
 
 main :: IO ()
 main = do
-    parsed <- cmdArgs options
-    print $ valid parsed
+    opts <- parseArgs
+    chan <- fork opts
+    recv chan opts
 
-version :: String
-version = "0.1"
+parseArgs :: IO Options
+parseArgs = do
+    opts <- cmdArgs options
+    return $ valid opts
 
 valid :: Options -> Options
 valid Options { optName = [] } = error "name cannot be blank"
 valid Options { optType = [] } = error "type cannot be blank"
 valid opts                     = opts
+
+fork :: Options -> Chan String
+fork opts = do
+    chan <- newChan
+    forkIO $ send chan opts
+    chan
+
+recv :: Chan String -> Options -> IO ()
+recv chan opts = do
+    line <- getLine
+    putStrLn $ "Received: " ++ line
+    writeChan chan line
+    recv opts chan
+
+send :: Chan String -> Options -> IO ()
+send chan opts = do
+    line <- readChan chan
+    putStrLn ("Sending: " ++ line)
+    send chan
