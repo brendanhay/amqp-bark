@@ -1,58 +1,31 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+
 module Main (
       main
     ) where
 
-import System.Environment (getArgs)
+import System.Console.CmdArgs
 import System.Exit        (ExitCode(..), exitWith)
-import System.Console.GetOpt
-import Data.Maybe         (fromMaybe)
+
+data Options = Options
+    { optName :: String
+    , optType :: String
+    } deriving (Show, Data, Typeable)
+
+options = Options
+     { optName = def &= explicit &= name "name" &= help "Application name" &= typ "NAME"
+     , optType = def &= explicit &= name "type" &= help "Application type" &= typ "TYPE"
+     } &= summary ("Typhon " ++ version)
 
 main :: IO ()
 main = do
-    args <- getArgs
-    let (actions, nonOpts, msgs) = getOpt RequireOrder options args
-    opts <- foldl (>>=) (return defaultOptions) actions
-    let Options { optName = input,
-                  optType = output } = opts
-    input >>= output
-
-data Options = Options
-    { optName :: IO String
-    , optType :: String -> IO ()
-    }
-
-defaultOptions :: Options
-defaultOptions = Options
-    { optName = getContents -- "testopt"
-    , optType = putStr -- "testtype"
-    }
-
-options :: [OptDescr (Options -> IO Options)]
-options =
-    [ Option ['u'] ["usage"]   (NoArg showUsage)       "show this message"
-    , Option ['v'] ["version"] (NoArg showVersion)     "show version number"
-    , Option ['n'] ["name"]    (ReqArg appName "NAME") "input file to read"
-    , Option ['t'] ["type"]    (ReqArg appType "TYPE") "output file to write"
-    ]
-
-header :: String
-header = "Usage: typhon [OPTION...]"
-
-showUsage :: a -> IO Options
-showUsage _ = do
-    putStrLn $ usageInfo header options
-    exitWith ExitSuccess
+    parsed <- cmdArgs options
+    print $ valid parsed
 
 version :: String
 version = "0.1"
 
-showVersion :: a -> IO Options
-showVersion _ = do
-    putStrLn $ "Typhon " ++ version
-    exitWith ExitSuccess
-
-appName :: String -> Options -> IO Options
-appName arg opt = return opt { optName = readFile arg }
-
-appType :: String -> Options -> IO Options
-appType arg opt = return opt { optType = writeFile arg }
+valid :: Options -> Options
+valid Options { optName = [] } = error "name cannot be blank"
+valid Options { optType = [] } = error "type cannot be blank"
+valid opts                     = opts

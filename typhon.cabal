@@ -19,9 +19,11 @@ executable typhon
   main-is:          Main.hs
   hs-source-dirs:   src
   build-depends:    base >= 4.3 && < 5
+                  , transformers
                   , bytestring
                   , text
                   , time
+                  , cmdargs
                   , amqp
                   , attoparsec
                   , aeson
