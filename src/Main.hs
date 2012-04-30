@@ -7,6 +7,7 @@ module Main (
 import System.Console.CmdArgs
 import Control.Concurrent      (forkIO)
 import Control.Concurrent.Chan (Chan, newChan, readChan, writeChan)
+import Data.Maybe      (fromJust)
 
 import qualified Typhon.AMQP as A
 
@@ -45,7 +46,8 @@ valid opts                     = opts
 fork :: Options -> IO (Chan String)
 fork opts = do
     chan <- newChan
-    forkIO $ send chan opts
+    amqp <- A.open "typhon.ex" "typhon.q"
+    forkIO $ send chan opts amqp
     return chan
 
 recv :: Chan String -> Options -> IO ()
@@ -55,8 +57,9 @@ recv chan opts = do
     writeChan chan line
     recv chan opts
 
-send :: Chan String -> Options -> IO ()
-send chan opts = do
+send :: Chan String -> Options -> A.Channel -> IO ()
+send chan opts amqp = do
     line <- readChan chan
     putStrLn ("Sending: " ++ line)
-    send chan opts
+    A.publish amqp "typhon.ex" "typhon.q" line
+    send chan opts amqp
