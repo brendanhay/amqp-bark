@@ -20,9 +20,11 @@ executable typhon
   hs-source-dirs:   src
   build-depends:    base >= 4.3 && < 5
                   , transformers
+                  , unix
+                  , split
                   , bytestring
-                  , text
                   , time
+                  , uri
                   , cmdargs
                   , amqp
                   , attoparsec
