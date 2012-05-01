@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Typhon.AMQP (
-      newChan
+      connect
     , publish
-    , Network.AMQP.Connection
-    , Network.AMQP.Channel
+    , AMQPConn
+    , AMQPChan
     , URI
     , parseURI
     ) where
@@ -16,8 +16,13 @@ import Network.AMQP
 
 import qualified Data.ByteString.Lazy.Char8 as BL
 
-newChan :: String -> String -> IO Channel
-newChan exchange queue = do
+type AMQPConn = Connection
+type AMQPChan = Channel
+
+-- API
+
+connect :: String -> String -> IO AMQPChan
+connect exchange queue = do
     let amqpURI = "amqp://guest:guest@127.0.0.1/"
     let uri   = fromJust $ parseURI amqpURI
     let auth  = fromMaybe "guest:guest" $ uriUserInfo uri
@@ -29,12 +34,24 @@ newChan exchange queue = do
     conn <- openConnection host vhost user password
     chan <- openChannel conn
 
+--    declare chan exchange queue queue
+    putStrLn ("Queue: " ++ queue)
     declareQueue chan newQueue { queueName = queue, queueDurable = True }
+    putStrLn ("Ex: " ++ exchange)
     declareExchange chan newExchange { exchangeName = exchange, exchangeType = "fanout", exchangeDurable = True }
     bindQueue chan queue exchange queue
 
     return chan
 
-publish :: Channel -> String -> String -> String -> IO ()
+publish :: AMQPChan -> String -> String -> String -> IO ()
 publish chan exchange queue payload =
     publishMsg chan exchange queue newMsg { msgBody = BL.pack payload }
+
+-- Private
+
+declare :: AMQPChan -> String -> String -> String -> IO ()
+declare chan exchange queue key = do
+    declareQueue chan newQueue { queueName = queue, queueDurable = True }
+    declareExchange chan newExchange { exchangeName = exchange, exchangeType = "fanout", exchangeDurable = True }
+    bindQueue chan queue exchange key
+
