@@ -12,8 +12,8 @@ import Typhon.Writer
 buffer :: Buffer a => Handle -> a -> IO ()
 buffer fd buf = do
     line <- hGetLine fd
-    push buf line
-    buffer fd buf
+    buf' <- push buf line
+    buffer fd buf'
 
 flush :: (Writer a, Buffer b) => a -> b -> IO ()
 flush wtr buf = do

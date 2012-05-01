@@ -11,6 +11,7 @@ class Writer a where
 data AMQPWriter = AMQPWriter AMQPChan
 
 instance Writer AMQPWriter where
+    write _ []                  = return ()
     write (AMQPWriter chan) str = do
         putStrLn $ "publishing: " ++ str
         publish chan "typhon.ex" "typhon.q" str
