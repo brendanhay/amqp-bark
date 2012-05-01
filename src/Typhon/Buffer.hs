@@ -11,7 +11,7 @@ class Buffer a where
     pop  :: a -> IO (a, String)
 
 data AsyncBuffer = AsyncBuffer
-    { bufChan      :: Chan String
+    { bufChannel   :: Chan String
     , bufContents  :: String
     , bufDelimiter :: String
     }

@@ -30,9 +30,9 @@ options = Options
 
 main = do
     buf <- defaultBuffer
-    wtr <- defaultWriter
-    forkIO $ flush wtr buf
-    buffer stdin buf
+    wrt <- defaultWriter
+    forkIO $ flush wrt buf
+    drain stdin buf
 
 parseArgs :: IO Options
 parseArgs = do

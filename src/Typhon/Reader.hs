@@ -1,5 +1,5 @@
 module Typhon.Reader (
-      buffer
+      drain
     , flush
     , defaultBuffer
     , defaultWriter
@@ -9,14 +9,14 @@ import System.IO (Handle, hGetLine)
 import Typhon.Buffer
 import Typhon.Writer
 
-buffer :: Buffer a => Handle -> a -> IO ()
-buffer fd buf = do
+drain :: Buffer a => Handle -> a -> IO ()
+drain fd buf = do
     line <- hGetLine fd
     buf' <- push buf line
-    buffer fd buf'
+    drain fd buf'
 
-flush :: (Writer a, Buffer b) => a -> b -> IO ()
-flush wtr buf = do
+flush :: (Writer a, Buf b) => a -> b -> IO ()
+flush wrt buf = do
     (buf', str) <- pop buf
-    write wtr str
-    flush wtr buf'
+    write wrt str
+    flush wrt buf'
