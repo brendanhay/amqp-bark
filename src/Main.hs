@@ -29,10 +29,10 @@ options = Options
      } &= summary ("Typhon " ++ version)
 
 main = do
-    buf <- defaultBuffer
-    wrt <- defaultWriter
-    forkIO $ flush wrt buf
-    drain stdin buf
+    buf  <- defaultBuffer
+    wrtr <- defaultWriter
+    forkIO (wrtr `drain` buf)
+    stdin `fill` buf
 
 parseArgs :: IO Options
 parseArgs = do
