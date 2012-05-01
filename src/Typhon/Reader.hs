@@ -13,10 +13,10 @@ fill :: Buffer a => Handle -> a -> IO ()
 fill fd buf = do
     line <- hGetLine fd
     buf' <- push buf line
-    fill fd buf'
+    fd `fill` buf'
 
 drain :: (Writer a, Buffer b) => a -> b -> IO ()
 drain wrtr buf = do
     (buf', str) <- pop buf
-    write wrtr str
-    drain wrtr buf'
+    wrtr `write` str
+    wrtr `drain` buf'
