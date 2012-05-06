@@ -30,8 +30,8 @@ instance Delimiter BS.ByteString where
     split       = BS.breakSubstring
     strip delim = BS.drop (BS.length delim)
 
-delimitConduit :: Monad m
-               => Delimiter d
+delimitConduit :: (Delimiter d, Monad m)
+               => d
                -> Conduit BS.ByteString m BS.ByteString
 delimitConduit delim =
     conduitState BS.empty push close
