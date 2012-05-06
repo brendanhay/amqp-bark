@@ -30,10 +30,10 @@ instance Delimiter BS.ByteString where
     split       = BS.breakSubstring
     strip delim = BS.drop (BS.length delim)
 
-delimiteredConduit :: (Delimiter d, Monad m)
-                   => d
-                   -> Conduit BS.ByteString m BS.ByteString
-delimiteredConduit delim =
+delimitConduit :: Monad m
+               => Delimiter d
+               -> Conduit BS.ByteString m BS.ByteString
+delimitConduit delim =
     conduitState BS.empty push close
   where
     push state input = return $ StateProducing state' res
@@ -63,7 +63,7 @@ main = do
                          $$ sinkTBMChan chan
     runResourceT
         $   sourceTBMChan chan
-        $=  delimiteredConduit ("--" :: BS.ByteString)
+        $=  delimitConduit ("--" :: BS.ByteString)
         =$= amqpConduit uri exchange queue
         $$  sinkHandle stdout
   where
