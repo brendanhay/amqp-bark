@@ -7,7 +7,6 @@ module Main (
 import Control.Concurrent     (forkIO)
 import Control.Monad.STM      (atomically)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.ByteString.Char8
 import Data.Conduit
 import Data.Conduit.Binary    (sourceHandle, sinkHandle)
 import Data.Conduit.TMChan
@@ -19,7 +18,33 @@ import System.IO              (stdin, stdout)
 
 import qualified Data.ByteString as BS
 
-type Strategy = Monad m => Conduit BS.ByteString m BS.ByteString
+class Delimiter a where
+    split   :: a -> BS.ByteString -> (BS.ByteString, BS.ByteString)
+    strip   :: a -> BS.ByteString -> BS.ByteString
+
+instance Delimiter Word8 where
+    split   = BS.breakByte
+    strip _ = id
+
+instance Delimiter BS.ByteString where
+    split       = BS.breakSubstring
+    strip delim = BS.drop (BS.length delim)
+
+delimiteredConduit :: (Delimiter d, Monad m)
+                   => d
+                   -> Conduit BS.ByteString m BS.ByteString
+delimiteredConduit delim =
+    conduitState BS.empty push close
+  where
+    push state input = return $ StateProducing state' res
+      where
+        buffer        = BS.append state input
+        (match, rest) = split delim buffer
+        (state', res) | BS.null rest  = (buffer, [])
+                      | BS.null match = (buffer, [])
+                      | otherwise     = (strip delim rest, [match])
+
+    close state = return [state]
 
 version :: Version
 version = Version
@@ -27,53 +52,18 @@ version = Version
     , versionTags   = []
     }
 
-bound :: Int
-bound = 32
-
-strategy :: BS.ByteString -> Strategy
-strategy delim | (BS.length delim) > 1 = byString delim
-               | otherwise             = byByte $ BS.head delim
-
-byByte :: Word8 -> Strategy
-byByte word =
-    conduitState BS.empty push close
-  where
-    push state input = return $ StateProducing state' res
-      where
-        buffer        = BS.append state input
-        (match, rest) = BS.breakByte word buffer
-
-        (state', res) | BS.null rest  = (buffer, [])
-                      | BS.null match = (buffer, [])
-                      | otherwise     = (rest, [match])
-
-    close state = return [state]
-
-byString :: BS.ByteString -> Strategy
-byString bstr =
-    conduitState BS.empty push close
-  where
-    push state input = return $ StateProducing state' res
-      where
-        buffer        = BS.append state input
-        strip         = BS.drop (BS.length bstr)
-        (match, rest) = BS.breakSubstring bstr buffer
-
-        (state', res) | BS.null rest  = (buffer, [])
-                      | BS.null match = (buffer, [])
-                      | otherwise     = (strip rest, [match])
-
-    close state = return [state]
+bufferSize :: Int
+bufferSize = 32
 
 main :: IO ()
 main = do
-    chan <- atomically $ newTBMChan bound
+    chan <- atomically $ newTBMChan bufferSize
     _    <- forkIO . runResourceT
                          $  sourceHandle stdin
                          $$ sinkTBMChan chan
     runResourceT
         $   sourceTBMChan chan
-        $=  strategy "--"
+        $=  delimiteredConduit ("--" :: BS.ByteString)
         =$= amqpConduit uri exchange queue
         $$  sinkHandle stdout
   where

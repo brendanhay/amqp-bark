@@ -40,10 +40,8 @@ amqpConduit uri exchange queue =
     conduitIO
     (connect uri exchange queue)
     disconnect
-    push'
+    (\conn bstr -> push (IOProducing [bstr]) conn bstr)
     (close [])
-  where
-    push' conn bstr = push (IOProducing [bstr]) conn bstr
 
 amqpSink :: MonadResource m
          => URI
@@ -58,7 +56,7 @@ amqpSink uri exchange queue =
     (close ())
 
 --
--- Internal
+-- Conduit Helpers
 --
 
 push :: MonadResource m => b -> AMQPConn -> BS.ByteString -> m b
@@ -70,6 +68,10 @@ close :: MonadResource m => a -> AMQPConn -> m a
 close res conn = do
     liftIO $ disconnect conn
     return res
+
+--
+-- Internal
+--
 
 connect :: URI -> ExchangeOpts -> QueueOpts -> IO AMQPConn
 connect uri exchange queue = do
