@@ -1,52 +1,82 @@
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes #-}
 
 module Main (
       main
     ) where
 
-import System.Console.CmdArgs
-import System.IO          (stdin)
-import Control.Concurrent (forkIO)
-import Data.Maybe         (fromJust)
-import Data.List          (intercalate)
-import Typhon.Reader
+import Control.Concurrent     (forkIO)
+import Control.Monad.STM      (atomically)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.ByteString.Char8
+import Data.Conduit
+import Data.Conduit.Binary    (sourceHandle, sinkHandle)
+import Data.Conduit.TMChan
+import Data.Maybe             (fromJust)
+import Data.Word              (Word8)
+import Data.Version           (Version(..), versionBranch)
+import Network.AMQP.Conduit
+import System.IO              (stdin, stdout)
 
-version :: String
-version = "0.1"
+import qualified Data.ByteString as BS
 
-data Options = Options
-    { optName      :: String
-    , optType      :: String
-    , optUri       :: String
-    , optDelimiter :: String
-    } deriving (Show, Data, Typeable)
+type Strategy = Monad m => Conduit BS.ByteString m BS.ByteString
 
-options = Options
-     { optName = def &= explicit &= name "name" &= help "Application name" &= typ "NAME"
-     , optType = def &= explicit &= name "type" &= help "Application type" &= typ "TYPE"
-     , optUri = def &= explicit &= name "uri" &= help "AMQP Uri" &= typ "URI"
-     , optDelimiter = def &= explicit &= name "delimiter" &= help "Message delimiter" &= typ "DELIMITER"
-     } &= summary ("Typhon " ++ version)
+version :: Version
+version = Version
+    { versionBranch = [0, 1, 0]
+    , versionTags   = []
+    }
 
+bound :: Int
+bound = 32
+
+strategy :: BS.ByteString -> Strategy
+strategy delim | (BS.length delim) > 1 = byString delim
+               | otherwise             = byByte $ BS.head delim
+
+byByte :: Word8 -> Strategy
+byByte word =
+    conduitState BS.empty push close
+  where
+    push state input = return $ StateProducing state' res
+      where
+        buffer        = BS.append state input
+        (match, rest) = BS.breakByte word buffer
+
+        (state', res) | BS.null rest  = (buffer, [])
+                      | BS.null match = (buffer, [])
+                      | otherwise     = (rest, [match])
+
+    close state = return [state]
+
+byString :: BS.ByteString -> Strategy
+byString bstr =
+    conduitState BS.empty push close
+  where
+    push state input = return $ StateProducing state' res
+      where
+        buffer        = BS.append state input
+        strip         = BS.drop (BS.length bstr)
+        (match, rest) = BS.breakSubstring bstr buffer
+
+        (state', res) | BS.null rest  = (buffer, [])
+                      | BS.null match = (buffer, [])
+                      | otherwise     = (strip rest, [match])
+
+    close state = return [state]
+
+main :: IO ()
 main = do
-    buf  <- defaultBuffer
-    wrtr <- defaultWriter
-    forkIO (wrtr `drain` buf)
-    stdin `fill` buf
-
-parseArgs :: IO Options
-parseArgs = do
-    opts <- cmdArgs options
-    return $ valid opts
-
-valid :: Options -> Options
-valid Options { optName = [] } = error "name cannot be blank"
-valid Options { optType = [] } = error "type cannot be blank"
-valid Options { optUri = [] } = error "uri cannot be blank"
-valid opts = opts
-
--- queue :: Options -> String
--- queue opts = intercalate "." [optName opts, optType opts]
-
--- exchange :: Options -> String
--- exchange = optType
+    chan <- atomically $ newTBMChan bound
+    _    <- forkIO . runResourceT
+                         $  sourceHandle stdin
+                         $$ sinkTBMChan chan
+    runResourceT
+        $   sourceTBMChan chan
+        $=  strategy "--"
+        =$= amqpConduit uri exchange queue
+        $$  sinkHandle stdout
+  where
+     uri      = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
+     exchange = newExchange { exchangeName = "test", exchangeType = "direct" }
+     queue    = newQueue { queueName = "test" }
