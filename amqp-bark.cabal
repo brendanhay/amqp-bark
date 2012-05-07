@@ -31,7 +31,7 @@ executable amqp-bark
                   , bytestring
                   , utf8-string
                   , time
-                  , uri
+                  , network
                   , conduit
                   , stm
                   , stm-conduit

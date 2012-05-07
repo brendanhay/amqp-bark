@@ -5,20 +5,28 @@ module Bark.Options (
     , parseOptions
     ) where
 
+import Data.Maybe         (fromJust)
 import Data.Version
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
 import System.Exit
+import Network.URI        (URI(..), parseURI)
 
 import qualified Control.Monad as M
+
+import qualified Data.ByteString as BS
 
 data Options = Options
     { optDelimiter :: String
     , optStrip     :: Bool
     , optBuffer    :: Int
     , optTee       :: Bool
-    , optName       :: String
+    , optUri       :: URI
+    , optName      :: String
     } deriving (Data, Typeable, Show, Eq)
+
+instance Default URI where
+    def = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
 
 parseOptions :: IO Options
 parseOptions = do
@@ -80,6 +88,13 @@ defaultOptions = Options
     , optTee = def
         &= name "tee"
         &= help "Write output to stdout in addition to amqp"
+        &= explicit
+
+    , optUri = def
+        &= name "amqp-uri"
+        &= opt  "URI"
+        &= typ  "URI"
+        &= help "The amqp host and authentication information, defaults to localhost"
         &= explicit
 
     , optName = def

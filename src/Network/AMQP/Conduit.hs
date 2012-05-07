@@ -18,7 +18,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Conduit
 import Data.Maybe             (fromJust, fromMaybe)
 import Data.List.Split        (splitOn)
-import Text.URI               (URI(..), parseURI)
+import Network.URI            (URI(..), URIAuth(..), parseURI)
 import Network.AMQP
 
 import qualified Data.ByteString as BS
@@ -97,7 +97,7 @@ openConn :: URI -> IO Connection
 openConn uri =
     openConnection host vhost user password
   where
+    auth = URIAuth "guest:guest" "127.0.0.1" ""
+    (URIAuth info host _) = fromMaybe auth $ uriAuthority uri
     vhost = uriPath uri
-    host  = fromMaybe "127.0.0.1" $ uriRegName uri
-    auth  = fromMaybe "guest:guest" $ uriUserInfo uri
-    [user, password] = splitOn ":" auth
+    [user, password] = splitOn ":" info
