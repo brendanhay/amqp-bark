@@ -1,16 +1,24 @@
-name:                bark
+name:                amqp-bark
 version:             0.1.0
 synopsis:
 description:
 license:             BSD3
 license-file:        LICENSE
+
 author:              Brendan Hay <brendan@soundcloud.com>
 maintainer:          Brendan Hay <brendan@soundcloud.com>
-homepage:            http://github.com/brendanhay/bark
-category:            Events
+homepage:            http://github.com/brendanhay/amqp-bark
+
+category:            Logging
+stability:           Experimental
 build-type:          Simple
 cabal-version:       >= 1.10
-extra-source-files:
+
+extra-source-files:  README.md
+
+source-repository head
+  type:              git
+  location:          http://github.com/brendanhay/amqp-bark
 
 executable bark
   main-is:          Main.hs
