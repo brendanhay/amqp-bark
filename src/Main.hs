@@ -2,7 +2,6 @@
 
 module Main (
       main
-    , conduits
     ) where
 
 import Control.Concurrent     (forkIO)
