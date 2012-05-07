@@ -56,8 +56,8 @@ version = Version
 
 validate :: Options -> IO Options
 validate opts@Options{..} = do
-    when (null optDelimiter)   "--delimiter cannot be blank"
-    when (not $ optBuffer > 0) "--buffer must be greater than zero"
+    -- when (null optDelimiter)   "--delimiter cannot be blank"
+    -- when (not $ optBuffer > 0) "--buffer must be greater than zero"
     when (null optName)        "--name cannot be blank"
     return opts
 
@@ -68,38 +68,35 @@ defaultOptions :: Options
 defaultOptions = Options
     { optDelimiter = def
         &= name "delimiter"
-        &= opt  "\n"
-        &= typ  "\\n"
-        &= help "The byte or string denoting a chunk of output"
+        &= typ  "STRING"
+        &= help "A byte or string denoting output (default: \\n)"
         &= explicit
 
-    , optStrip = def
+    , optStrip = False
         &= name "strip"
-        &= help "Remove the delimiter from the output"
+        &= help "Remove the delimiter from output (default: false)"
         &= explicit
 
-    , optBuffer = def
+    , optBuffer = 4096
         &= name "buffer"
-        &= opt  "4096"
-        &= typ  "4096"
-        &= help "The size of the read buffer in bytes"
+        &= typ  "BYTES"
+        &= help "The size of the stdin source buffer (default: 4096)"
         &= explicit
 
     , optTee = def
         &= name "tee"
-        &= help "Write output to stdout in addition to amqp"
+        &= help "Additionally write output to stdout (default: false)"
         &= explicit
 
     , optUri = def
         &= name "amqp-uri"
-        &= opt  "URI"
         &= typ  "URI"
-        &= help "The amqp host and authentication information, defaults to localhost"
+        &= help "The amqp uri (default: guest@localhost)"
         &= explicit
 
     , optName = def
         &= name "name"
         &= typ  "NAME"
-        &= help "The application name"
+        &= help "The application name (required)"
         &= explicit
     }
