@@ -18,12 +18,12 @@ import qualified Data.ByteString as BS
 
 data Options = Options
     { optDelimiter :: String
-    , optStrip     :: Bool
+    , optName      :: String
+    , optUri       :: URI
     , optBuffer    :: Int
     , optBound     :: Int
     , optTee       :: Bool
-    , optUri       :: URI
-    , optName      :: String
+    , optStrip     :: Bool
     } deriving (Data, Typeable, Show, Eq)
 
 parseOptions :: IO Options
@@ -71,9 +71,10 @@ defaults = Options
         &= help "A byte or string denoting output (default: \\n)"
         &= explicit
 
-    , optStrip = False
-        &= name "strip"
-        &= help "Remove the delimiter from output (default: false)"
+    , optName = ""
+        &= name "name"
+        &= typ  "NAME"
+        &= help "The application name (required)"
         &= explicit
 
     , optBuffer = 4096
@@ -88,20 +89,19 @@ defaults = Options
         &= help "The max number of '--buffer' chunks (default: 512)"
         &= explicit
 
-    , optTee = False
-        &= name "tee"
-        &= help "Additionally write output to stdout (default: false)"
-        &= explicit
-
     , optUri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
         &= name "amqp-uri"
         &= typ  "URI"
         &= help "The amqp uri (default: guest@localhost)"
         &= explicit
 
-    , optName = ""
-        &= name "name"
-        &= typ  "NAME"
-        &= help "The application name (required)"
+    , optStrip = False
+        &= name "strip"
+        &= help "Remove the delimiter from output (default: false)"
+        &= explicit
+
+    , optTee = False
+        &= name "tee"
+        &= help "Additionally write output to stdout (default: false)"
         &= explicit
     }
