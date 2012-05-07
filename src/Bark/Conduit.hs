@@ -21,8 +21,8 @@ instance Delimiter BS.ByteString where
     strip delim = BS.drop (BS.length delim)
 
 splitConduit :: (Delimiter d, Monad m)
-               => d
-               -> Conduit BS.ByteString m BS.ByteString
+             => d
+             -> Conduit BS.ByteString m BS.ByteString
 splitConduit delim =
     conduitState BS.empty push close
   where
