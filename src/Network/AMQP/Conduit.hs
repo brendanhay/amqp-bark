@@ -73,16 +73,19 @@ close res conn = do
 -- Internal
 --
 
+publish :: AMQPConn -> BS.ByteString -> IO ()
+publish (AMQPConn _ chan exchange queue) payload =
+    publishMsg chan (exchangeName exchange) (queueName queue) message
+  where
+    message = newMsg { msgBody = BL.fromChunks [payload] }
+
 connect :: URI -> ExchangeOpts -> QueueOpts -> IO AMQPConn
 connect uri exchange queue = do
     conn <- openConn uri
     chan <- openChannel conn
-
     declareQueue chan queue
     declareExchange chan exchange
-
     bindQueue chan (exchangeName exchange) key key
-
     return $ AMQPConn conn chan exchange queue
   where
     key = queueName queue
@@ -98,9 +101,3 @@ openConn uri =
     host  = fromMaybe "127.0.0.1" $ uriRegName uri
     auth  = fromMaybe "guest:guest" $ uriUserInfo uri
     [user, password] = splitOn ":" auth
-
-publish :: AMQPConn -> BS.ByteString -> IO ()
-publish (AMQPConn _ chan exchange queue) payload =
-    publishMsg chan (exchangeName exchange) (queueName queue) message
-  where
-    message = newMsg { msgBody = BL.fromChunks [payload] }

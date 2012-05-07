@@ -1,4 +1,4 @@
-module Typhon.Conduit (
+module Bark.Conduit (
       Delimiter
     , splitConduit
     ) where
