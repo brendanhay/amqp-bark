@@ -25,9 +25,6 @@ data Options = Options
     , optName      :: String
     } deriving (Data, Typeable, Show, Eq)
 
-instance Default URI where
-    def = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
-
 parseOptions :: IO Options
 parseOptions = do
     args <- getArgs
@@ -56,8 +53,8 @@ version = Version
 
 validate :: Options -> IO Options
 validate opts@Options{..} = do
-    -- when (null optDelimiter)   "--delimiter cannot be blank"
-    -- when (not $ optBuffer > 0) "--buffer must be greater than zero"
+    when (null optDelimiter)   "--delimiter cannot be blank"
+    when (not $ optBuffer > 0) "--buffer must be greater than zero"
     when (null optName)        "--name cannot be blank"
     return opts
 
@@ -66,7 +63,7 @@ when p msg = M.when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
 defaultOptions :: Options
 defaultOptions = Options
-    { optDelimiter = def
+    { optDelimiter = "\n"
         &= name "delimiter"
         &= typ  "STRING"
         &= help "A byte or string denoting output (default: \\n)"
@@ -83,18 +80,18 @@ defaultOptions = Options
         &= help "The size of the stdin source buffer (default: 4096)"
         &= explicit
 
-    , optTee = def
+    , optTee = False
         &= name "tee"
         &= help "Additionally write output to stdout (default: false)"
         &= explicit
 
-    , optUri = def
+    , optUri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
         &= name "amqp-uri"
         &= typ  "URI"
         &= help "The amqp uri (default: guest@localhost)"
         &= explicit
 
-    , optName = def
+    , optName = ""
         &= name "name"
         &= typ  "NAME"
         &= help "The application name (required)"
