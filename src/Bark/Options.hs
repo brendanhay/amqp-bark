@@ -20,6 +20,7 @@ data Options = Options
     { optDelimiter :: String
     , optStrip     :: Bool
     , optBuffer    :: Int
+    , optBound     :: Int
     , optTee       :: Bool
     , optUri       :: URI
     , optName      :: String
@@ -32,7 +33,7 @@ parseOptions = do
     validate opts
 
 options :: IO Options
-options = cmdArgs $ defaultOptions
+options = cmdArgs $ defaults
     &= versionArg [explicit, name "version", name "v", vers]
     &= summary blank
     &= helpArg [explicit, name "help", name "h"]
@@ -55,14 +56,15 @@ validate :: Options -> IO Options
 validate opts@Options{..} = do
     when (null optDelimiter)   "--delimiter cannot be blank"
     when (not $ optBuffer > 0) "--buffer must be greater than zero"
+    when (not $ optBound > 0)  "--bound must be greater than zero"
     when (null optName)        "--name cannot be blank"
     return opts
 
 when :: Bool -> String -> IO ()
 when p msg = M.when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
-defaultOptions :: Options
-defaultOptions = Options
+defaults :: Options
+defaults = Options
     { optDelimiter = "\n"
         &= name "delimiter"
         &= typ  "STRING"
@@ -77,7 +79,13 @@ defaultOptions = Options
     , optBuffer = 4096
         &= name "buffer"
         &= typ  "BYTES"
-        &= help "The size of the stdin source buffer (default: 4096)"
+        &= help "The size of the stdin buffer (default: 4096)"
+        &= explicit
+
+    , optBound = 512
+        &= name "bound"
+        &= typ  "INT"
+        &= help "The max number of '--buffer' chunks (default: 512)"
         &= explicit
 
     , optTee = False

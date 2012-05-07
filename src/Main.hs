@@ -42,8 +42,8 @@ sink chan =
 
 main :: IO ()
 main = do
-    options <- parseOptions
-    putStrLn $ show options
-    -- chan <- atomically $ newTBMChan 32
-    -- _    <- forkIO $ source chan
-    -- sink chan
+    opts <- parseOptions
+    putStrLn $ show opts
+    chan <- atomically $ newTBMChan 32
+    _    <- forkIO $ source chan
+    sink chan
