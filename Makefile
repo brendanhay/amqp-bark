@@ -12,4 +12,4 @@ build:
 	cabal build
 
 run: build
-	./dist/build/amqp-bark/amqp-bark
+	./bark

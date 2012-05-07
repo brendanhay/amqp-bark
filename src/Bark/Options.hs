@@ -1,66 +1,90 @@
 {-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
 
 module Bark.Options (
-
+      Options
+    , parseOptions
     ) where
 
-import Control.Monad      (when)
 import Data.Version
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
 import System.Exit
 
-data MyOptions = MyOptions
-    { color      :: Bool
-    , first_name :: String
-    , age        :: Int
-    , directory  :: FilePath
+import qualified Control.Monad as M
+
+data Options = Options
+    { optDelimiter :: String
+    , optStrip     :: Bool
+    , optBuffer    :: Int
+    , optTee       :: Bool
+    , optName       :: String
     } deriving (Data, Typeable, Show, Eq)
 
-myProgOpts :: MyOptions
-myProgOpts = MyOptions
-    { color      = def &= help "use color"
-    , first_name = def &= help "your first name"
-    , age        = def &= explicit &= name "g" &= name "age" &= help "your age"
-    , directory  = def &= typDir &= help "your first name"
-    }
+parseOptions :: IO Options
+parseOptions = do
+    args <- getArgs
+    opts <- (if null args then withArgs ["--help"] else id) options
+    validate opts
 
-getOpts :: IO MyOptions
-getOpts = cmdArgs $ myProgOpts
-    &= versionArg [explicit, name "version", name "v", summary _PROGRAM_INFO]
-    &= summary (_PROGRAM_INFO ++ ", " ++ _COPYRIGHT)
-    &= help _PROGRAM_ABOUT
+options :: IO Options
+options = cmdArgs $ defaultOptions
+    &= versionArg [explicit, name "version", name "v", vers]
+    &= summary blank
     &= helpArg [explicit, name "help", name "h"]
-    &= program _PROGRAM_NAME
+    &= program usage
+  where
+    blank = ""
+    usage = "Usage: " ++ application
+    vers  = summary $ concat [application, ": ", showVersion version]
+
+application :: String
+application = "amqp-bark"
 
 version :: Version
 version = Version
     { versionBranch = [0, 1, 0]
-    , versionTags   = []
+    , versionTags   = ["experimental"]
     }
 
-_PROGRAM_NAME = "myProg"
-_PROGRAM_VERSION = "0.1.2.3"
-_PROGRAM_INFO = _PROGRAM_NAME ++ " version " ++ _PROGRAM_VERSION
-_PROGRAM_ABOUT = "a sample CmdArgs program for you tinkering pleasure"
-_COPYRIGHT = "(C) Your Name Here 2011"
+validate :: Options -> IO Options
+validate opts@Options{..} = do
+    when (null optDelimiter)   "--delimiter cannot be blank"
+    when (not $ optBuffer > 0) "--buffer must be greater than zero"
+    when (null optName)        "--name cannot be blank"
+    return opts
 
-optionHandler :: MyOptions -> IO ()
-optionHandler opts@MyOptions{..}  = do
-    -- Take the opportunity here to weed out ugly, malformed, or invalid arguments.
-    when (null first_name) $ putStrLn "--first-name is blank!" >> exitWith (ExitFailure 1)
-    when (age < 5) $ putStrLn "you must be at least 5 years old to run this program" >> exitWith (ExitFailure 1)
-    -- When you're done, pass the (corrected, or not) options to your actual program.
-    exec opts
+when :: Bool -> String -> IO ()
+when p msg = M.when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
-exec :: MyOptions -> IO ()
-exec opts@MyOptions{..} = do
-    putStrLn $ "Hello, " ++ firstname ++ "!"
-    putStrLn $ "You are " ++ showAge ++ " years old."
-    where
-        firstname = if color
-            then "\x1b[1;31m" ++ first_name ++ "\x1b[0m"
-            else first_name
-        showAge = if color
-            then "\x1b[1;32m" ++ show age ++ "\x1b[0m"
-            else show age
+defaultOptions :: Options
+defaultOptions = Options
+    { optDelimiter = def
+        &= name "delimiter"
+        &= opt  "\n"
+        &= typ  "\\n"
+        &= help "The byte or string denoting a chunk of output"
+        &= explicit
+
+    , optStrip = def
+        &= name "strip"
+        &= help "Remove the delimiter from the output"
+        &= explicit
+
+    , optBuffer = def
+        &= name "buffer"
+        &= opt  "4096"
+        &= typ  "4096"
+        &= help "The size of the read buffer in bytes"
+        &= explicit
+
+    , optTee = def
+        &= name "tee"
+        &= help "Write output to stdout in addition to amqp"
+        &= explicit
+
+    , optName = def
+        &= name "name"
+        &= typ  "NAME"
+        &= help "The application name"
+        &= explicit
+    }
