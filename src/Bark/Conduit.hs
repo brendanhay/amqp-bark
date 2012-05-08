@@ -10,7 +10,7 @@ module Bark.Conduit (
 import Control.Monad.IO.Class   (liftIO)
 import Data.ByteString.Char8    (pack)
 import Data.ByteString.Internal (c2w)
-import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop, unsafeTail)
+import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop)
 import Data.Conduit
 import Data.Word                (Word8)
 import System.IO                (Handle)
