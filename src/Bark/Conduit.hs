@@ -27,11 +27,11 @@ instance Delimiter AnyDelimiter where
     split (AnyDelimiter d) = split d
 
 instance Delimiter Word8 where
-    split d = breakIndices (BS.elemIndices d)
+    split = breakIndices . BS.elemIndices
     {-# INLINE split #-}
 
 instance Delimiter BS.ByteString where
-    split d = breakIndices (BS.findSubstrings d)
+    split = breakIndices . BS.findSubstrings
     {-# INLINE split #-}
 
 fromString :: String -> AnyDelimiter
