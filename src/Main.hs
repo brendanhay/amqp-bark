@@ -28,7 +28,7 @@ conduits :: MonadResource m
          => Options
          -> Conduit BS.ByteString m BS.ByteString
 conduits Options{..} =
-    (conduitSplit $ fromString optDelimiter) =$= (conduitHandle stdout)
+    (conduitSplit $ fromString optDelimiter) -- =$= (conduitHandle stdout)
 
 sink :: TBMChan BS.ByteString -> Options -> IO ()
 sink chan opts =

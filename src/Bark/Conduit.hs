@@ -10,7 +10,9 @@ module Bark.Conduit (
 import Control.Monad.IO.Class   (liftIO)
 import Data.ByteString.Char8    (pack)
 import Data.ByteString.Internal (c2w)
+import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop, unsafeTail)
 import Data.Conduit
+import Data.List (find)
 import Data.Word                (Word8)
 import System.IO                (Handle)
 
@@ -18,21 +20,19 @@ import qualified Data.ByteString as BS
 
 class Delimiter a where
     split :: a -> BS.ByteString -> (BS.ByteString, BS.ByteString)
-    strip :: a -> BS.ByteString -> BS.ByteString
 
 data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
 
 instance Delimiter AnyDelimiter where
     split (AnyDelimiter d) = split d
-    strip (AnyDelimiter d) = strip d
 
 instance Delimiter Word8 where
-    split   = BS.breakByte
-    strip _ = id
+    split d = breakIndices (BS.elemIndices d)
+    {-# INLINE split #-}
 
 instance Delimiter BS.ByteString where
-    split       = BS.breakSubstring
-    strip delim = BS.drop (BS.length delim)
+    split d = breakIndices (BS.findSubstrings d)
+    {-# INLINE split #-}
 
 fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
@@ -48,7 +48,7 @@ conduitSplit delim =
       where
         (state', res) | BS.null rest  = (buffer, [])
                       | BS.null match = (buffer, [])
-                      | otherwise     = (strip delim rest, [match])
+                      | otherwise     = (rest, [match])
           where
             buffer        = BS.append state input
             (match, rest) = split delim buffer
@@ -65,3 +65,16 @@ conduitHandle handle =
         (liftIO (BS.hPut handle bstr) >> return conduit)
         (return ())
     close = return ()
+
+--
+-- Internal
+--
+
+breakIndices :: (BS.ByteString -> [Int])
+             -> BS.ByteString
+             -> (BS.ByteString, BS.ByteString)
+breakIndices indices bstr = case indices bstr of
+    []    -> (BS.empty, bstr)
+    [0]   -> (bstr, BS.empty)
+    0:n:_ -> (unsafeTake n bstr, unsafeDrop n bstr)
+    n:_   -> (unsafeTake n bstr, unsafeDrop n bstr)

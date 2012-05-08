@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, RecordWildCards, FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
 
 module Bark.Options (
       Options(..)
@@ -58,9 +58,9 @@ version = Version
 validate :: Options -> IO Options
 validate opts@Options{..} = do
     when (null optDelimiter)   "--delimiter cannot be blank"
+    when (null optName)        "--name cannot be blank"
     when (not $ optBuffer > 0) "--buffer must be greater than zero"
     when (not $ optBound > 0)  "--bound must be greater than zero"
-    when (null optName)        "--name cannot be blank"
 
     return opts
 
