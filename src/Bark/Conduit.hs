@@ -73,7 +73,7 @@ breakIndices :: (BS.ByteString -> [Int])
              -> BS.ByteString
              -> (BS.ByteString, BS.ByteString)
 breakIndices indices bstr = case indices bstr of
-    []    -> (BS.empty, bstr)
-    [0]   -> (bstr, BS.empty)
-    0:n:_ -> (unsafeTake n bstr, unsafeDrop n bstr)
-    n:_   -> (unsafeTake n bstr, unsafeDrop n bstr)
+    []    -> (BS.empty, bstr)                       -- No matches
+    [0]   -> (bstr, BS.empty)                       -- Single match at head
+    0:n:_ -> (unsafeTake n bstr, unsafeDrop n bstr) -- Multiple matches, including head
+    n:_   -> (unsafeTake n bstr, unsafeDrop n bstr) -- Multiple matches in the tail
