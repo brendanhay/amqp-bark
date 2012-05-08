@@ -12,7 +12,6 @@ import Data.ByteString.Char8    (pack)
 import Data.ByteString.Internal (c2w)
 import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop, unsafeTail)
 import Data.Conduit
-import Data.List (find)
 import Data.Word                (Word8)
 import System.IO                (Handle)
 
