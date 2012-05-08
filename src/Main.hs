@@ -38,14 +38,15 @@ sink chan opts =
 --        $$ sinkAMQP uri exchange queue
         $$ sinkHandle stdout
   where
-    uri       = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
-    exchange  = newExchange { exchangeName = "test", exchangeType = "direct" }
-    queue     = newQueue { queueName = "test" }
+    uri      = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
+    exchange = newExchange { exchangeName = "test", exchangeType = "direct" }
+    queue    = newQueue { queueName = "test" }
 
 main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
     putStrLn $ show opts
+    putStrLn . show $ fromString optDelimiter
 
     chan <- atomically $ newTBMChan optBound
     _    <- forkIO $ source chan
