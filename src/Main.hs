@@ -15,7 +15,7 @@ import Network.AMQP.Conduit
 import System.IO              (stdin, stdout)
 import Bark.Conduit
 import Bark.Options
-
+import Data.ByteString.Char8 (pack)
 import qualified Data.ByteString as BS
 
 source :: TBMChan BS.ByteString -> IO ()
@@ -46,7 +46,6 @@ main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
     putStrLn $ show opts
-    putStrLn . show $ fromString optDelimiter
 
     chan <- atomically $ newTBMChan optBound
     _    <- forkIO $ source chan
