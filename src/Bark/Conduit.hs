@@ -7,12 +7,12 @@ module Bark.Conduit (
     , conduitHandle
     ) where
 
-import Control.Monad.IO.Class (liftIO)
-import Data.ByteString.Char8 (pack)
+import Control.Monad.IO.Class   (liftIO)
+import Data.ByteString.Char8    (pack)
 import Data.ByteString.Internal (c2w)
 import Data.Conduit
-import Data.Word (Word8)
-import System.IO (Handle)
+import Data.Word                (Word8)
+import System.IO                (Handle)
 
 import qualified Data.ByteString as BS
 
