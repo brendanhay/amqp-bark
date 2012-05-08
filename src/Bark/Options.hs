@@ -1,19 +1,22 @@
-{-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable, RecordWildCards, FlexibleInstances #-}
 
 module Bark.Options (
-      Options
+      Options(..)
     , parseOptions
     ) where
 
+import Data.ByteString.Internal (c2w)
+import Data.ByteString.Char8 (pack)
+import Data.Either
 import Data.Maybe         (fromJust)
 import Data.Version
+import Data.Word          (Word8)
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
 import System.Exit
 import Network.URI        (URI(..), parseURI)
 
 import qualified Control.Monad as M
-
 import qualified Data.ByteString as BS
 
 data Options = Options
@@ -25,6 +28,9 @@ data Options = Options
     , optTee       :: Bool
     , optStrip     :: Bool
     } deriving (Data, Typeable, Show, Eq)
+
+instance Default (Either BS.ByteString Word8) where
+    def = Right $ c2w '\n'
 
 parseOptions :: IO Options
 parseOptions = do
@@ -58,6 +64,7 @@ validate opts@Options{..} = do
     when (not $ optBuffer > 0) "--buffer must be greater than zero"
     when (not $ optBound > 0)  "--bound must be greater than zero"
     when (null optName)        "--name cannot be blank"
+
     return opts
 
 when :: Bool -> String -> IO ()

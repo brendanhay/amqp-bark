@@ -1,7 +1,7 @@
 module Network.AMQP.Conduit (
     -- * Sources, Sinks, and Conduits
-      amqpConduit
-    , amqpSink
+      conduitAMQP
+    , sinkAMQP
 
     -- * Text.URI re-exports
     , URI
@@ -31,24 +31,24 @@ data AMQPConn = AMQPConn
     , amqpExchange :: QueueOpts
     }
 
-amqpConduit :: MonadResource m
+conduitAMQP :: MonadResource m
             => URI
             -> ExchangeOpts
             -> QueueOpts
             -> Conduit BS.ByteString m BS.ByteString
-amqpConduit uri exchange queue =
+conduitAMQP uri exchange queue =
     conduitIO
     (connect uri exchange queue)
     disconnect
     (\conn bstr -> push (IOProducing [bstr]) conn bstr)
     (close [])
 
-amqpSink :: MonadResource m
+sinkAMQP :: MonadResource m
          => URI
          -> ExchangeOpts
          -> QueueOpts
          -> Sink BS.ByteString m ()
-amqpSink uri exchange queue =
+sinkAMQP uri exchange queue =
     sinkIO
     (connect uri exchange queue)
     disconnect
