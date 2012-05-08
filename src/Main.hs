@@ -27,8 +27,8 @@ source chan =
 conduits :: MonadResource m
          => Options
          -> Conduit BS.ByteString m BS.ByteString
-conduits opts@Options{..} =
-    (selectSplit $ delimiter opts) =$= (conduitHandle stdout)
+conduits Options{..} =
+    (conduitSplit $ fromString optDelimiter) =$= (conduitHandle stdout)
 
 sink :: TBMChan BS.ByteString -> Options -> IO ()
 sink chan opts =
@@ -45,8 +45,6 @@ sink chan opts =
 main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
-
-    putStrLn $ show $ delimiter opts
     putStrLn $ show opts
 
     chan <- atomically $ newTBMChan optBound

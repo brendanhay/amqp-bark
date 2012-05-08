@@ -1,8 +1,8 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Bark.Conduit (
       Delimiter(..)
-    , selectSplit
+    , fromString
     , conduitSplit
     , conduitHandle
     ) where
@@ -20,6 +20,12 @@ class Delimiter a where
     split :: a -> BS.ByteString -> (BS.ByteString, BS.ByteString)
     strip :: a -> BS.ByteString -> BS.ByteString
 
+data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
+
+instance Delimiter AnyDelimiter where
+    split (AnyDelimiter d) = split d
+    strip (AnyDelimiter d) = strip d
+
 instance Delimiter Word8 where
     split   = BS.breakByte
     strip _ = id
@@ -28,17 +34,9 @@ instance Delimiter BS.ByteString where
     split       = BS.breakSubstring
     strip delim = BS.drop (BS.length delim)
 
--- instance Delimiter (Either BS.ByteString Word8) where
---     split = split . select
---     strip = strip . select
-
--- fromString :: String -> Either BS.ByteString Word8
--- fromString str | (length str) > 1 = Left $ pack str
---                | otherwise        = Right $ c2w $ head str
-
-fromString :: Delimiter d => String -> d
-fromString str | (length str) > 1 = pack str
-               | otherwise        = c2w $ head str
+fromString :: String -> AnyDelimiter
+fromString str | (length str) > 1 = AnyDelimiter $ pack str
+               | otherwise        = AnyDelimiter . c2w $ head str
 
 conduitSplit :: (Delimiter d, Monad m)
              => d

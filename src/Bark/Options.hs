@@ -29,9 +29,6 @@ data Options = Options
     , optStrip     :: Bool
     } deriving (Data, Typeable, Show, Eq)
 
-instance Default (Either BS.ByteString Word8) where
-    def = Right $ c2w '\n'
-
 parseOptions :: IO Options
 parseOptions = do
     args <- getArgs
