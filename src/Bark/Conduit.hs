@@ -20,25 +20,32 @@ import qualified Data.ByteString as BS
 data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
 
 class Delimiter a where
-    split :: a -> BS.ByteString -> (BS.ByteString, BS.ByteString)
-    strip :: a -> BS.ByteString -> BS.ByteString
+    split :: a -> Bool -> BS.ByteString -> (BS.ByteString, BS.ByteString)
 
 instance Delimiter AnyDelimiter where
     split (AnyDelimiter d) = split d
-    strip (AnyDelimiter d) = strip d
 
 instance Delimiter Word8 where
-    split        = BS.breakByte
-    strip _ bstr = BS.take ((BS.length bstr) - 1) bstr
+    split d drop bstr = case BS.elemIndex d bstr of
+        Nothing -> (BS.empty, bstr)
+        Just n  -> (unsafeTake (n + pad) bstr, unsafeDrop (n + 1) bstr)
+          where
+            pad = if drop then 0 else 1
 
 instance Delimiter BS.ByteString where
-    split d bstr = breakSubstring d bstr False
-    strip d bstr = BS.take ((BS.length bstr) - (BS.length d)) bstr
+    split d drop bstr = search 0 bstr
+      where
+        search a b | strict    = undefined
+          where
+            strict = a `seq` b `seq` False
 
--- combined strip/split
--- "abc--defg"
--- rest: drop index + (length delim)
--- match: take index, optionally + (length delim) if include delims
+        search n s | BS.null s = (BS.empty, bstr)
+                   | prefix    = (unsafeTake (n + pad) bstr, unsafeDrop len s)
+                   | otherwise = search (n + 1) (unsafeTail s)
+          where
+            prefix = d `BS.isPrefixOf` s
+            len    = BS.length d
+            pad    = if drop then 0 else len
 
 fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
@@ -57,7 +64,7 @@ conduitSplit delim =
                       | otherwise     = (rest, [match])
           where
             buffer        = BS.append state input
-            (match, rest) = split delim buffer
+            (match, rest) = split delim True buffer
     close state = return [state]
 
 conduitHandle :: MonadResource m
@@ -71,22 +78,3 @@ conduitHandle handle =
         (liftIO (BS.hPut handle bstr) >> return conduit)
         (return ())
     close = return ()
-
---
--- Internal
---
-
-breakSubstring :: BS.ByteString
-               -> BS.ByteString
-               -> Bool
-               -> (BS.ByteString, BS.ByteString)
-breakSubstring pat bstr drop =
-    search 0 bstr
-  where
-    len = BS.length pat
-    pad = if drop then 0 else len
-
-    search a b | a `seq` b `seq` False = undefined
-    search n s | BS.null s             = (BS.empty, bstr)
-               | pat `BS.isPrefixOf` s = (BS.take (n + pad) bstr, BS.drop len s)
-               | otherwise             = search (n + 1) (unsafeTail s)
