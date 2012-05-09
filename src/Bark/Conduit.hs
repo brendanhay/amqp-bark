@@ -76,17 +76,19 @@ conduitHandle handle =
         (return ())
     close = return ()
 
-
 --
 -- Internal
 --
 
-findIndices :: BS.ByteString
-            -> BS.ByteString
-            -> [Int]
+breakSubstring :: BS.ByteString -> BS.ByteString -> [BS.ByteString]
+breakSubstring d bstr = splitIndices (findIndices d bstr) bstr
+
+findIndices :: BS.ByteString -> BS.ByteString -> [Int]
 findIndices d bstr | BS.null d = [0..BS.length bstr]
-                   | otherwise = search 0 bstr
+                   | otherwise = offset $ search 0 bstr
   where
+    offset = map (+ (BS.length d))
+
     search a b | a `seq` b `seq` False = undefined
     search n s | BS.null s             = []
                | d `BS.isPrefixOf` s   = n : continue
@@ -94,8 +96,8 @@ findIndices d bstr | BS.null d = [0..BS.length bstr]
       where
         continue = search (n + 1) (unsafeTail s)
 
-splitIndices i bstr | null i    = []
-                    | otherwise = left : splitSubstrings xs right
+splitIndices :: [Int] -> BS.ByteString -> [BS.ByteString]
+splitIndices [] _        = []
+splitIndices (x:xs) bstr = left : splitIndices xs right
   where
-    x:xs          = i
     (left, right) = BS.splitAt x bstr
