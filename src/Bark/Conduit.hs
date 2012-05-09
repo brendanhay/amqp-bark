@@ -80,24 +80,23 @@ conduitHandle handle =
 -- Internal
 --
 
-breakSubstring :: BS.ByteString -> BS.ByteString -> [BS.ByteString]
-breakSubstring d bstr = splitIndices (findIndices d bstr) bstr
-
-findIndices :: BS.ByteString -> BS.ByteString -> [Int]
-findIndices d bstr | BS.null d = [0..BS.length bstr]
-                   | otherwise = offset $ search 0 bstr
+breakSubstrings :: BS.ByteString
+                -> BS.ByteString
+                -> ([BS.ByteString], BS.ByteString)
+breakSubstrings d bstr | BS.null d = ([], bstr)
+                       | otherwise = result $ search 0 bstr 0
   where
-    offset = map (+ (BS.length d))
+    result res = case res of
+        []  -> ([], BS.empty)
+        [x] -> ([], x)
+        l   -> (init l, last l)
 
-    search a b | a `seq` b `seq` False = undefined
-    search n s | BS.null s             = []
-               | d `BS.isPrefixOf` s   = n : continue
-               | otherwise             = continue
+    search a b c | a `seq` b `seq` c `seq` False = undefined
+    search n s p | BS.null s           = [unsafeDrop p bstr]
+                 | d `BS.isPrefixOf` s = seg : continue offset
+                 | otherwise           = continue p
       where
+        offset   = n + (BS.length d)
+        seg      = unsafeTake (offset - p) $ unsafeDrop p bstr
         continue = search (n + 1) (unsafeTail s)
 
-splitIndices :: [Int] -> BS.ByteString -> [BS.ByteString]
-splitIndices [] _        = []
-splitIndices (x:xs) bstr = left : splitIndices xs right
-  where
-    (left, right) = BS.splitAt x bstr
