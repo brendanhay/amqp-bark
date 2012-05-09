@@ -45,6 +45,7 @@ sink chan opts =
 main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
+
     putStrLn $ show opts
 
     chan <- atomically $ newTBMChan optBound
