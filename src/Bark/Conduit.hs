@@ -35,10 +35,7 @@ instance Delimiter Word8 where
 instance Delimiter BS.ByteString where
     split d drop bstr = search 0 bstr
       where
-        search a b | strict    = undefined
-          where
-            strict = a `seq` b `seq` False
-
+        search a b | a `seq` b `seq` False = undefined
         search n s | BS.null s = (BS.empty, bstr)
                    | prefix    = (unsafeTake (n + pad) bstr, unsafeDrop len s)
                    | otherwise = search (n + 1) (unsafeTail s)
