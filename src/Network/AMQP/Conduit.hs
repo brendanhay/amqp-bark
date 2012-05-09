@@ -83,9 +83,12 @@ connect :: URI -> ExchangeOpts -> QueueOpts -> IO AMQPConn
 connect uri exchange queue = do
     conn <- openConn uri
     chan <- openChannel conn
+
     declareQueue chan queue
     declareExchange chan exchange
+
     bindQueue chan (exchangeName exchange) key key
+
     return $ AMQPConn conn chan exchange queue
   where
     key = queueName queue
@@ -94,10 +97,14 @@ disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn
 
 openConn :: URI -> IO Connection
-openConn uri =
-    openConnection host vhost user password
+openConn uri = do
+    openConnection host vhost user pwd
   where
     auth = URIAuth "guest:guest" "127.0.0.1" ""
     (URIAuth info host _) = fromMaybe auth $ uriAuthority uri
     vhost = uriPath uri
-    [user, password] = splitOn ":" info
+    [user, pwd] = splitOn ":" $ trim info
+
+trim :: String -> String
+trim = f . f
+   where f = reverse . dropWhile (== '@')

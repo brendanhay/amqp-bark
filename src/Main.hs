@@ -35,8 +35,8 @@ sink chan opts =
     runResourceT
         $  sourceTBMChan chan
         $= conduits opts
---        $$ sinkAMQP uri exchange queue
-        $$ sinkHandle stdout
+        $$ sinkAMQP uri exchange queue
+--        $$ sinkHandle stdout
   where
     uri      = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
     exchange = newExchange { exchangeName = "test", exchangeType = "direct" }

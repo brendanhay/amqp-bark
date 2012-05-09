@@ -20,28 +20,29 @@ import qualified Data.ByteString as BS
 data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
 
 class Delimiter a where
-    split :: a -> Bool -> BS.ByteString -> (BS.ByteString, BS.ByteString)
+    split :: a -> Bool -> BS.ByteString -> ([BS.ByteString], BS.ByteString)
 
 instance Delimiter AnyDelimiter where
     split (AnyDelimiter d) = split d
 
 instance Delimiter Word8 where
     split d drop bstr = case BS.elemIndex d bstr of
-        Nothing -> (BS.empty, bstr)
-        Just n  -> (unsafeTake (n + pad) bstr, unsafeDrop (n + 1) bstr)
+        Nothing -> ([], bstr)
+        Just n  -> ([unsafeTake (n + pad) bstr], unsafeDrop (n + 1) bstr)
           where
             pad = if drop then 0 else 1
 
 instance Delimiter BS.ByteString where
     split d drop bstr = search 0 bstr
       where
-        search n s | BS.null s = (BS.empty, bstr)
-                   | prefix    = (unsafeTake (n + pad) bstr, unsafeDrop len s)
+        search n s | BS.null s = ([], bstr)
+                   | prefix    = ([unsafeTake (n + pad) bstr], unsafeDrop len s)
                    | otherwise = search (n + 1) (unsafeTail s)
           where
             prefix = d `BS.isPrefixOf` s
             len    = BS.length d
             pad    = if drop then 0 else len
+
 
 fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
@@ -55,12 +56,12 @@ conduitSplit delim =
   where
     push state input = return $ StateProducing state' res
       where
-        (state', res) | BS.null rest  = (buffer, [])
-                      | BS.null match = (buffer, [])
-                      | otherwise     = (rest, [match])
+        (state', res) | BS.null rest = (buffer, [])
+                      | null matches = (buffer, [])
+                      | otherwise    = (rest, matches)
           where
-            buffer                    = BS.append state input
-            (strip delim match, rest) = split delim True buffer
+            buffer          = BS.append state input
+            (matches, rest) = split delim True buffer
     close state = return [state]
 
 conduitHandle :: MonadResource m
@@ -74,3 +75,27 @@ conduitHandle handle =
         (liftIO (BS.hPut handle bstr) >> return conduit)
         (return ())
     close = return ()
+
+
+--
+-- Internal
+--
+
+findIndices :: BS.ByteString
+            -> BS.ByteString
+            -> [Int]
+findIndices d bstr | BS.null d = [0..BS.length bstr]
+                   | otherwise = search 0 bstr
+  where
+    search a b | a `seq` b `seq` False = undefined
+    search n s | BS.null s             = []
+               | d `BS.isPrefixOf` s   = n : continue
+               | otherwise             = continue
+      where
+        continue = search (n + 1) (unsafeTail s)
+
+splitIndices i bstr | null i    = []
+                    | otherwise = left : splitSubstrings xs right
+  where
+    x:xs          = i
+    (left, right) = BS.splitAt x bstr
