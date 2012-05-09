@@ -15,7 +15,7 @@ import Network.AMQP.Conduit
 import System.IO              (stdin, stdout)
 import Bark.Conduit
 import Bark.Options
-import Data.ByteString.Char8 (pack)
+
 import qualified Data.ByteString as BS
 
 source :: TBMChan BS.ByteString -> IO ()

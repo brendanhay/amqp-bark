@@ -59,8 +59,8 @@ conduitSplit delim =
                       | BS.null match = (buffer, [])
                       | otherwise     = (rest, [match])
           where
-            buffer        = BS.append state input
-            (match, rest) = split delim True buffer
+            buffer                    = BS.append state input
+            (strip delim match, rest) = split delim True buffer
     close state = return [state]
 
 conduitHandle :: MonadResource m
