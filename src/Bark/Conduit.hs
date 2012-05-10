@@ -84,14 +84,10 @@ breakSubstrings d drop bstr | BS.null d = ([], bstr)
 
     search a b c | a `seq` b `seq` c `seq` False = undefined
     search n s p | BS.null s           = [unsafeDrop p bstr]
-                 | d `BS.isPrefixOf` s = seg : continue (n + len)
-                 | otherwise           = continue p
+                 | d `BS.isPrefixOf` s = seg : search offset (unsafeDrop len s) offset
+                 | otherwise           = search (n + 1) (unsafeTail s) p
       where
-        len = BS.length d
-        pad = (if drop then n else n + len) - p
-        seg = unsafeTake pad $ unsafeDrop p bstr
-        add | BS.null seg = id
-            | otherwise   = cons seg
-
-        continue = search (n + 1) (unsafeTail s)
+        len    = BS.length d
+        offset = n + len
+        seg    = unsafeTake (offset - p) $ unsafeDrop p bstr
 
