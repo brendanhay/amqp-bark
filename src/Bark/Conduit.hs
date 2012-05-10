@@ -28,7 +28,7 @@ instance Delimiter AnyDelimiter where
     split (AnyDelimiter d) = split d
 
 instance Delimiter Word8 where
-    split _ _ _ = ([], BS.empty)
+    split = breakByte
 
 instance Delimiter BS.ByteString where
     split = breakString
@@ -74,7 +74,7 @@ breakByte :: Word8
           -> BS.ByteString
           -> ([BS.ByteString], BS.ByteString)
 breakByte w drop bstr@(PS x s l) | l == 0    = ([], bstr)
-                                 | otherwise = breakResult $ search 0
+                                 | otherwise = formatResult $ search 0
     where
         search a | a `seq` False = undefined
         search n =
@@ -95,7 +95,7 @@ breakString :: BS.ByteString
             -> BS.ByteString
             -> ([BS.ByteString], BS.ByteString)
 breakString d drop bstr | BS.null d = ([], bstr)
-                        | otherwise = breakResult $ search 0 bstr 0
+                        | otherwise = formatResult $ search 0 bstr 0
   where
     search a b c | a `seq` b `seq` c `seq` False = undefined
     search n s p | BS.null s           = [unsafeDrop p bstr]
@@ -112,8 +112,8 @@ breakString d drop bstr | BS.null d = ([], bstr)
              | BS.null slice = id -- Empty slice
              | otherwise     = (slice :)
 
-breakResult :: [BS.ByteString] -> ([BS.ByteString], BS.ByteString)
-breakResult l = case l of
+formatResult :: [BS.ByteString] -> ([BS.ByteString], BS.ByteString)
+formatResult l = case l of
     []  -> ([], BS.empty)
     [x] -> ([], x)
     _   -> (init l, last l)
