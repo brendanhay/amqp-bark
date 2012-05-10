@@ -89,13 +89,13 @@ breakByte :: Word8
           -> Bool
           -> BS.ByteString
           -> ([BS.ByteString], BS.ByteString)
-breakByte w strip bstr@(PS x s l) | l == 0    = ([], bstr)
+breakByte d strip bstr@(PS x s l) | l == 0    = ([], bstr)
                                  | otherwise = formatResult $ search 0
     where
         search a | a `seq` False = undefined
         search n =
             let q = inlinePerformIO $ withForeignPtr x $ \p ->
-                      memchr (p `plusPtr` (s + n)) w (fromIntegral (l - n))
+                      memchr (p `plusPtr` (s + n)) d (fromIntegral (l - n))
             in if q == nullPtr
                 then [PS x (s + n) (l - n)]
                 else let i = inlinePerformIO $ withForeignPtr x $ \p ->
