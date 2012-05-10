@@ -33,16 +33,7 @@ instance Delimiter Word8 where
             pad = if drop then 0 else 1
 
 instance Delimiter BS.ByteString where
-    split d drop bstr = search 0 bstr
-      where
-        search n s | BS.null s = ([], bstr)
-                   | prefix    = ([unsafeTake (n + pad) bstr], unsafeDrop len s)
-                   | otherwise = search (n + 1) (unsafeTail s)
-          where
-            prefix = d `BS.isPrefixOf` s
-            len    = BS.length d
-            pad    = if drop then 0 else len
-
+    split = breakSubstrings
 
 fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
@@ -81,22 +72,26 @@ conduitHandle handle =
 --
 
 breakSubstrings :: BS.ByteString
+                -> Bool
                 -> BS.ByteString
                 -> ([BS.ByteString], BS.ByteString)
-breakSubstrings d bstr | BS.null d = ([], bstr)
-                       | otherwise = result $ search 0 bstr 0
+breakSubstrings d drop bstr | BS.null d = ([], bstr)
+                            | otherwise = result $ search 0 bstr 0
   where
-    result res = case res of
-        []  -> ([], BS.empty)
-        [x] -> ([], x)
-        l   -> (init l, last l)
+    result []  = ([], BS.empty)
+    result [x] = ([], x)
+    result l   = (init l, last l)
 
     search a b c | a `seq` b `seq` c `seq` False = undefined
     search n s p | BS.null s           = [unsafeDrop p bstr]
-                 | d `BS.isPrefixOf` s = seg : continue offset
+                 | d `BS.isPrefixOf` s = seg : continue (n + len)
                  | otherwise           = continue p
       where
-        offset   = n + (BS.length d)
-        seg      = unsafeTake (offset - p) $ unsafeDrop p bstr
+        len = BS.length d
+        pad = (if drop then n else n + len) - p
+        seg = unsafeTake pad $ unsafeDrop p bstr
+        add | BS.null seg = id
+            | otherwise   = cons seg
+
         continue = search (n + 1) (unsafeTail s)
 
