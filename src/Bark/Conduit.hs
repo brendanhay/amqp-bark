@@ -84,13 +84,13 @@ breakSubstrings d drop bstr | BS.null d = ([], bstr)
 
     search a b c | a `seq` b `seq` c `seq` False = undefined
     search n s p | BS.null s           = [unsafeDrop p bstr]
-                 | d `BS.isPrefixOf` s = cons $ search offset (unsafeDrop dlen s) offset
+                 | d `BS.isPrefixOf` s = cons $ search plen (unsafeDrop dlen s) plen
                  | otherwise           = search (n + 1) (unsafeTail s) p
       where
-        dlen   = BS.length d -- Delimiter length
-        offset = n + dlen    -- Distance to move the search ptr
-        slen   = (if drop then n else offset) - p -- Slice length relative to previous slice
-        slice  = unsafeTake slen $ unsafeDrop p bstr
+        dlen  = BS.length d -- Delimiter length
+        plen  = n + dlen    -- Distance to move the search ptr
+        slen  = (if drop then n else plen) - p -- Slice length relative to previous slice
+        slice = unsafeTake slen $ unsafeDrop p bstr
 
         cons | slen == dlen  = id -- Lonely delimiter
              | BS.null slice = id -- Empty slice
