@@ -9,11 +9,14 @@ module Bark.Conduit (
 
 import Control.Monad.IO.Class   (liftIO)
 import Data.ByteString.Char8    (pack)
-import Data.ByteString.Internal (c2w)
+import Data.ByteString.Internal (ByteString(PS), c2w, memchr, inlinePerformIO)
 import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop, unsafeTail)
 import Data.Conduit
 import Data.Word                (Word8)
 import System.IO                (Handle)
+
+import Foreign.ForeignPtr
+import Foreign.Ptr
 
 import qualified Data.ByteString as BS
 
@@ -26,14 +29,10 @@ instance Delimiter AnyDelimiter where
     split (AnyDelimiter d) = split d
 
 instance Delimiter Word8 where
-    split d drop bstr = case BS.elemIndex d bstr of
-        Nothing -> ([], bstr)
-        Just n  -> ([unsafeTake (n + pad) bstr], unsafeDrop (n + 1) bstr)
-          where
-            pad = if drop then 0 else 1
+    split _ _ _ = ([], BS.empty)
 
 instance Delimiter BS.ByteString where
-    split = breakSubstrings
+    split = breakString
 
 fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
@@ -71,17 +70,34 @@ conduitHandle handle =
 -- Internal
 --
 
-breakSubstrings :: BS.ByteString
-                -> Bool
-                -> BS.ByteString
-                -> ([BS.ByteString], BS.ByteString)
-breakSubstrings d drop bstr | BS.null d = ([], bstr)
-                            | otherwise = result $ search 0 bstr 0
-  where
-    result []  = ([], BS.empty)
-    result [x] = ([], x)
-    result l   = (init l, last l)
+breakByte :: Word8
+          -> Bool
+          -> BS.ByteString
+          -> ([BS.ByteString], BS.ByteString)
+breakByte w drop bstr@(PS x s l) | l == 0    = ([], bstr)
+                                 | otherwise = breakResult $ search 0
+    where
+        search a | a `seq` False = undefined
+        search n =
+            let q = inlinePerformIO $ withForeignPtr x $ \p ->
+                      memchr (p `plusPtr` (s + n)) w (fromIntegral (l - n))
+            in if q == nullPtr
+                then [PS x (s + n) (l - n)]
+                else let i = inlinePerformIO $ withForeignPtr x $ \p ->
+                               return (q `minusPtr` (p `plusPtr` s))
+                      in if i - n == 0
+                          then search (i + 1)
+                          else PS x (s + n) (i - n + plen) : search (i + 1)
+                            where
+                             plen = if drop then 0 else 1
 
+breakString :: BS.ByteString
+            -> Bool
+            -> BS.ByteString
+            -> ([BS.ByteString], BS.ByteString)
+breakString d drop bstr | BS.null d = ([], bstr)
+                        | otherwise = breakResult $ search 0 bstr 0
+  where
     search a b c | a `seq` b `seq` c `seq` False = undefined
     search n s p | BS.null s           = [unsafeDrop p bstr]
                  | d `BS.isPrefixOf` s = cons $ search plen (unsafeDrop dlen s) plen
@@ -90,10 +106,15 @@ breakSubstrings d drop bstr | BS.null d = ([], bstr)
         dlen  = BS.length d -- Delimiter length
         plen  = n + dlen    -- Distance to move the search ptr
         slen  = (if drop then n else plen) - p -- Slice length relative to previous slice
+
         slice = unsafeTake slen $ unsafeDrop p bstr
 
         cons | slen == dlen  = id -- Lonely delimiter
              | BS.null slice = id -- Empty slice
              | otherwise     = (slice :)
 
-
+breakResult :: [BS.ByteString] -> ([BS.ByteString], BS.ByteString)
+breakResult l = case l of
+    []  -> ([], BS.empty)
+    [x] -> ([], x)
+    _   -> (init l, last l)
