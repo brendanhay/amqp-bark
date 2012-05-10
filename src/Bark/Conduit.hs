@@ -62,8 +62,7 @@ conduitSplit delim strip =
   where
     push state input = return $ StateProducing state' res
       where
-        (state', res) | BS.null rest = (buffer, [])
-                      | null matches = (buffer, [])
+        (state', res) | null matches = (buffer, [])
                       | otherwise    = (rest, matches)
           where
             buffer          = BS.append state input

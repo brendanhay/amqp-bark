@@ -30,7 +30,9 @@ source chan Options{..} =
 conduits :: MonadResource m
          => Options
          -> Conduit BS.ByteString m BS.ByteString
-conduits Options{..} = conduitSplit (fromString optDelimiter) optStrip
+conduits Options{..} =
+    conduitSplit (fromString optDelimiter) optStrip
+  where
 
 sink :: TBMChan BS.ByteString -> Options -> IO ()
 sink chan opts =
