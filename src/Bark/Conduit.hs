@@ -13,10 +13,9 @@ import Data.ByteString.Internal (ByteString(PS), c2w, memchr, inlinePerformIO)
 import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop, unsafeTail)
 import Data.Conduit
 import Data.Word                (Word8)
-import System.IO                (Handle)
-
 import Foreign.ForeignPtr
 import Foreign.Ptr
+import System.IO                (Handle)
 
 import qualified Data.ByteString as BS
 
