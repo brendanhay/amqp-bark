@@ -87,13 +87,13 @@ breakSubstrings d drop bstr | BS.null d = ([], bstr)
                  | d `BS.isPrefixOf` s = cons $ search offset (unsafeDrop dlen s) offset
                  | otherwise           = search (n + 1) (unsafeTail s) p
       where
-        dlen   = BS.length d                          -- delimiter length
-        offset = n + dlen                             -- how far to move the search ptr
-        slen   = (if drop then n else offset) - p     -- the length to slice relative to a previous slice
-        slice  = unsafeTake slen $ unsafeDrop p bstr  -- slice!
+        dlen   = BS.length d -- Delimiter length
+        offset = n + dlen    -- Distance to move the search ptr
+        slen   = (if drop then n else offset) - p -- Slice length relative to previous slice
+        slice  = unsafeTake slen $ unsafeDrop p bstr
 
-        cons | slen == dlen  = id        -- not point slicing, it's a lonely delimiter
-             | BS.null slice = id        -- the resulting slice is empty
-             | otherwise     = (slice :) -- add the slice to the head of the result
+        cons | slen == dlen  = id -- Lonely delimiter
+             | BS.null slice = id -- Empty slice
+             | otherwise     = (slice :)
 
 
