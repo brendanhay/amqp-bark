@@ -3,6 +3,7 @@
 module Bark.Conduit (
       Delimiter(..)
     , fromString
+    , sourceHandle
     , conduitSplit
     , conduitHandle
     ) where
@@ -37,10 +38,26 @@ fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
                | otherwise        = AnyDelimiter . c2w $ head str
 
+sourceHandle :: MonadResource m
+             => Handle
+             -> Int
+             -> Source m BS.ByteString
+sourceHandle handle buffer =
+    source
+  where
+    source = PipeM pull close
+    pull = do
+        bstr <- liftIO (BS.hGetSome handle buffer)
+        if BS.null bstr
+            then return $ Done Nothing ()
+            else return $ HaveOutput source close bstr
+    close = return ()
+
 conduitSplit :: (Delimiter d, Monad m)
              => d
+             -> Bool
              -> Conduit BS.ByteString m BS.ByteString
-conduitSplit delim =
+conduitSplit delim strip =
     conduitState BS.empty push close
   where
     push state input = return $ StateProducing state' res
@@ -50,7 +67,7 @@ conduitSplit delim =
                       | otherwise    = (rest, matches)
           where
             buffer          = BS.append state input
-            (matches, rest) = split delim True buffer
+            (matches, rest) = split delim strip buffer
     close state = return [state]
 
 conduitHandle :: MonadResource m
@@ -73,7 +90,7 @@ breakByte :: Word8
           -> Bool
           -> BS.ByteString
           -> ([BS.ByteString], BS.ByteString)
-breakByte w drop bstr@(PS x s l) | l == 0    = ([], bstr)
+breakByte w strip bstr@(PS x s l) | l == 0    = ([], bstr)
                                  | otherwise = formatResult $ search 0
     where
         search a | a `seq` False = undefined
@@ -88,13 +105,13 @@ breakByte w drop bstr@(PS x s l) | l == 0    = ([], bstr)
                           then search (i + 1)
                           else PS x (s + n) (i - n + plen) : search (i + 1)
                             where
-                             plen = if drop then 0 else 1
+                             plen = if strip then 0 else 1
 
 breakString :: BS.ByteString
             -> Bool
             -> BS.ByteString
             -> ([BS.ByteString], BS.ByteString)
-breakString d drop bstr | BS.null d = ([], bstr)
+breakString d strip bstr | BS.null d = ([], bstr)
                         | otherwise = formatResult $ search 0 bstr 0
   where
     search a b c | a `seq` b `seq` c `seq` False = undefined
@@ -104,7 +121,7 @@ breakString d drop bstr | BS.null d = ([], bstr)
       where
         dlen  = BS.length d -- Delimiter length
         plen  = n + dlen    -- Distance to move the search ptr
-        slen  = (if drop then n else plen) - p -- Slice length relative to previous slice
+        slen  = (if strip then n else plen) - p -- Slice length relative to previous slice
 
         slice = unsafeTake slen $ unsafeDrop p bstr
 
