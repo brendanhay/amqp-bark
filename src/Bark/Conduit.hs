@@ -73,13 +73,11 @@ conduitHandle :: MonadResource m
               => Handle
               -> Conduit BS.ByteString m BS.ByteString
 conduitHandle handle =
-    conduit
+    conduitIO (return handle) (\_ -> return ()) push (const $ return [])
   where
-    conduit = NeedInput push close
-    push bstr = PipeM
-        (liftIO (BS.hPut handle bstr) >> return conduit)
-        (return ())
-    close = return ()
+    push h input = do
+        liftIO $ BS.hPut h input
+        return $ IOProducing [input]
 
 --
 -- Internal
