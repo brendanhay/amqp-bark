@@ -1,4 +1,4 @@
-module Network.AMQP.Conduit (
+module Bark.AMQP (
     -- * Sources, Sinks, and Conduits
       conduitAMQP
     , sinkAMQP

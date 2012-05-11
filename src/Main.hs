@@ -10,9 +10,9 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Conduit
 import Data.Conduit.TMChan
 import Data.Maybe             (fromJust)
-import Network.AMQP.Conduit
 import System.IO              (stdin, stdout)
-import Bark.Conduit
+import Bark.AMQP
+import Bark.Binary
 import Bark.Options
 
 import qualified Data.ByteString as BS

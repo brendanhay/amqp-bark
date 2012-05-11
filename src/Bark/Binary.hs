@@ -1,6 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Bark.Conduit (
+module Bark.Binary (
       Delimiter(..)
     , fromString
     , sourceHandle
