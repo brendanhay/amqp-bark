@@ -47,7 +47,8 @@ sink :: TBMChan BS.ByteString -> Options -> IO ()
 sink chan opts =
     runResourceT
         $  sourceTBMChan chan
-        $= conduits opts
+--        $= conduits opts
+        $= conduitMessage'
 --        $$ sinkAMQP uri
         $$ sinkPrint
   where
