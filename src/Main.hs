@@ -6,7 +6,7 @@ module Main (
 
 import Control.Concurrent     (forkIO)
 import Control.Monad.STM      (atomically)
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Conduit
 import Data.Conduit.TMChan
 import Data.Maybe             (fromJust)
@@ -14,6 +14,7 @@ import System.IO              (stdin, stdout)
 import Bark.AMQP
 import Bark.Binary
 import Bark.Options
+import Bark.Parser
 
 import qualified Data.ByteString as BS
 
@@ -25,23 +26,32 @@ source chan Options{..} =
 
 conduits :: MonadResource m
          => Options
-         -> Conduit BS.ByteString m BS.ByteString
+         -> Conduit BS.ByteString m Message
 conduits Options{..} =
-    tee $ conduitSplit (fromString optDelimiter) optStrip
+    (tee $ split) =$= conduitMessage
   where
+    split = conduitSplit (fromString optDelimiter) optStrip
     tee | optTee    = (=$= conduitHandle stdout)
         | otherwise = id
+
+sinkPrint :: MonadIO m => Sink Message m ()
+sinkPrint =
+    NeedInput push close
+  where
+    push msg = PipeM
+        (liftIO (print msg) >> return (NeedInput push close))
+        (return ())
+    close = return ()
 
 sink :: TBMChan BS.ByteString -> Options -> IO ()
 sink chan opts =
     runResourceT
         $  sourceTBMChan chan
         $= conduits opts
-        $$ sinkAMQP uri exchange queue
+--        $$ sinkAMQP uri
+        $$ sinkPrint
   where
-    uri      = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
-    exchange = newExchange { exchangeName = "test", exchangeType = "direct" }
-    queue    = newQueue { queueName = "test" }
+    uri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
 
 main :: IO ()
 main = do
