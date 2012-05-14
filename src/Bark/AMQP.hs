@@ -1,103 +1,63 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Bark.AMQP (
     -- * Sources, Sinks, and Conduits
-      conduitAMQP
-    , sinkAMQP
+      sinkAMQP
 
     -- * Text.URI re-exports
     , URI
     , parseURI
-
-    -- * Network.AMQP re-exports
-    , ExchangeOpts(..)
-    , QueueOpts(..)
-    , newExchange
-    , newQueue
     ) where
 
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Class     (MonadIO, liftIO)
+import Data.ByteString.Lazy.Char8 (fromChunks)
+import Data.Char                  (toLower)
 import Data.Conduit
-import Data.Maybe             (fromJust, fromMaybe)
-import Data.List.Split        (splitOn)
-import Network.URI            (URI(..), URIAuth(..), parseURI)
+import Data.Maybe                 (fromJust, fromMaybe, isJust)
+import Data.List.Split            (splitOn)
 import Network.AMQP
+import Network.BSD                (getHostName)
+import Network.URI                (URI(..), URIAuth(..), parseURI)
 
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy.Char8 as BL
+
+import qualified Data.ByteString   as BS
+import qualified Data.HashTable.IO as H
+import qualified Bark.Message      as M
+
+type HashTable k v = H.BasicHashTable k v
 
 data AMQPConn = AMQPConn
-    { amqpConn     :: Connection
-    , amqpChan     :: Channel
-    , amqpQueue    :: ExchangeOpts
-    , amqpExchange :: QueueOpts
+    { amqpConn  :: Connection
+    , amqpChan  :: Channel
+    , amqpCache :: HashTable String QueueOpts
     }
 
-conduitAMQP :: MonadResource m
-            => URI
-            -> ExchangeOpts
-            -> QueueOpts
-            -> Conduit BS.ByteString m BS.ByteString
-conduitAMQP uri exchange queue =
-    conduitIO
-    (connect uri exchange queue)
-    disconnect
-    (\conn bstr -> push (IOProducing [bstr]) conn bstr)
-    (close [])
-
-sinkAMQP :: MonadResource m
-         => URI
-         -> ExchangeOpts
-         -> QueueOpts
-         -> Sink BS.ByteString m ()
-sinkAMQP uri exchange queue =
-    sinkIO
-    (connect uri exchange queue)
-    disconnect
-    (push IOProcessing)
-    (close ())
-
---
--- Conduit Helpers
---
-
-push :: MonadResource m => b -> AMQPConn -> BS.ByteString -> m b
-push res conn bstr = do
-    liftIO $ publish conn bstr
-    return res
-
-close :: MonadResource m => a -> AMQPConn -> m a
-close res conn = do
-    liftIO $ disconnect conn
-    return res
+sinkAMQP :: MonadResource m => URI -> String -> Sink M.Message m ()
+sinkAMQP uri app =
+    sinkIO (connect uri app) disconnect push close
+  where
+    push conn msg = liftIO $ publish conn msg >> return IOProcessing
+    close conn    = liftIO $ disconnect conn >> return ()
 
 --
 -- Internal
 --
 
-publish :: AMQPConn -> BS.ByteString -> IO ()
-publish (AMQPConn _ chan exchange queue) payload =
-    publishMsg chan (exchangeName exchange) (queueName queue) message
-  where
-    message = newMsg { msgBody = BL.fromChunks [payload] }
-
-connect :: URI -> ExchangeOpts -> QueueOpts -> IO AMQPConn
-connect uri exchange queue = do
-    conn <- openConn uri
-    chan <- openChannel conn
-
-    declareQueue chan queue
-    declareExchange chan exchange
-
-    bindQueue chan (exchangeName exchange) key key
-
-    return $ AMQPConn conn chan exchange queue
-  where
-    key = queueName queue
-
 disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn
 
-openConn :: URI -> IO Connection
-openConn uri = do
+connect :: URI -> String -> IO AMQPConn
+connect uri app = do
+    conn  <- open uri
+    chan  <- openChannel conn
+    cache <- H.new
+
+    declareExchange chan newExchange { exchangeName = app, exchangeType = "topic", exchangeDurable = True }
+
+    return $ AMQPConn conn chan cache
+
+open :: URI -> IO Connection
+open uri = do
     openConnection host vhost user pwd
   where
     auth = URIAuth "guest:guest" "127.0.0.1" ""
@@ -105,6 +65,47 @@ openConn uri = do
     vhost = uriPath uri
     [user, pwd] = splitOn ":" $ trim info
 
+publish :: AMQPConn -> M.Message -> IO ()
+publish conn@AMQPConn{..} msg = do
+    (exchange, _) <- declare conn msg
+    host          <- hostName
+    putStrLn $ "Publish: " ++ (M.publishKey msg host)
+    publishMsg amqpChan exchange (M.publishKey msg host) payload
+  where
+    payload            = newMsg { msgBody = body $ M.msgBody msg }
+    body (M.Payload b) = fromChunks [b]
+    body (M.Error err) = fromChunks [err]
+
+declare :: AMQPConn -> M.Message -> IO (String, String)
+declare conn@AMQPConn{..} msg = do
+    exists <- just $ H.lookup amqpCache queue
+    ensure exists conn exchange queue key
+    return (exchange, queue)
+  where
+    exchange = M.exchange msg
+    queue    = M.queue msg
+    key      = M.bindKey msg
+
+ensure :: Bool -> AMQPConn -> String -> String -> String -> IO ()
+ensure True _ _ _ _ = return ()
+ensure False AMQPConn{..} exchange queue key = do
+    H.insert amqpCache queue opts
+    declareQueue amqpChan opts
+    putStrLn $ "Bind: " ++ key
+    bindQueue amqpChan queue exchange key
+  where
+    opts = newQueue { queueName = queue, queueDurable = True }
+
+hostName :: IO String
+hostName = getHostName >>= return . map f
+  where
+    f '.' = '_'
+    f c   = toLower c
+
+just :: Monad m => m (Maybe a) -> m Bool
+just s = s >>= return . isJust
+
 trim :: String -> String
 trim = f . f
-   where f = reverse . dropWhile (== '@')
+  where
+    f = reverse . dropWhile (== '@')

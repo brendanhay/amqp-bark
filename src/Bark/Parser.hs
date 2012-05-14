@@ -7,40 +7,26 @@ module Bark.Parser (
 
 import Control.Applicative
 import Data.Attoparsec
+import Data.ByteString.Char8 (pack)
 import Data.Conduit
-import Data.Monoid (mempty)
-import GHC.Word    (Word8)
+import Data.Monoid           (mempty)
+import GHC.Word              (Word8)
+import Bark.Message
 
-import qualified Data.ByteString       as BS
 import qualified Data.Attoparsec.Char8 as AC
+import qualified Data.ByteString       as BS
 
-newtype Severity = Severity BS.ByteString deriving (Eq, Show)
-
-newtype Category = Category BS.ByteString deriving (Eq, Show)
-
-data Body = Payload BS.ByteString | Error String deriving (Eq, Show)
-
-data Message = Message
-    { msgSeverity :: !Severity
-    , msgCategory :: !Category
-    , msgBody     :: !Body
-    } deriving (Eq, Show)
-
-defaultMessage = Message
-    { msgSeverity = Severity BS.empty
-    , msgCategory = Category BS.empty
-    , msgBody     = Payload BS.empty
-    }
-
-conduitMessage :: MonadResource m => Conduit BS.ByteString m Message
-conduitMessage =
+conduitMessage :: MonadResource m => String -> Conduit BS.ByteString m Message
+conduitMessage app =
     conduit
   where
-    conduit     = NeedInput push mempty
-    push        = HaveOutput conduit (return ()) . parse
-    parse input = case parseOnly messageParser' input of
+    parse input = case parseOnly parser input of
         Right msg -> msg
-        Left  err -> Message (Severity "ERROR") (Category "error") (Error err)
+        Left  err -> Message app "error" "error" . Error $ pack err
+
+    parser  = messageParser' app
+    conduit = NeedInput push mempty
+    push    = HaveOutput conduit (return ()) . parse
 
 --
 -- Internal
@@ -53,9 +39,9 @@ unbracket = AC.char8 ']'
 bracketedValue :: Parser BS.ByteString
 bracketedValue = bracket *> AC.takeTill (== ']') <* unbracket
 
-messageParser' :: Parser Message
-messageParser' = do
+messageParser' :: String -> Parser Message
+messageParser' app = do
     severity <- bracketedValue
-    category <- bracketedValue <|> pure BS.empty
+    category <- bracketedValue <|> pure defaultSeverity
     body     <- takeByteString
-    return $! Message (Severity severity) (Category category) (Payload body)
+    return $! Message app severity category (Payload body)

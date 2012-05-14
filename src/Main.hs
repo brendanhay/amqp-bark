@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Conduit
 import Data.Conduit.TMChan
 import Data.Maybe             (fromJust)
-import System.IO              (stdin, stdout)
+import System.IO              (stdin)
 import Bark.AMQP
 import Bark.Binary
 import Bark.Options
@@ -28,20 +28,20 @@ parseMessages :: MonadResource m
               => Options
               -> Conduit BS.ByteString m Message
 parseMessages Options{..}  =
-    splitDelimiter =$= conduitMessage
+    (conduitSplit delim optStrip) =$= conduitMessage optName
   where
-    splitDelimiter  = tee $ conduitSplit (fromString optDelimiter) optStrip
-    tee | optTee    = (=$= conduitHandle stdout)
-        | otherwise = id
+    delim = fromString optDelimiter
 
 sinkMessages :: TBMChan BS.ByteString -> Options -> IO ()
 sinkMessages chan opts@Options{..} =
     runResourceT
         $  sourceTBMChan chan
-        $= parseMessages opts
-        $$ sinkAMQP uri
+        $= (tee $ parseMessages opts)
+        $$ sinkAMQP uri optName
   where
     uri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
+    tee | optTee    = (=$= conduitShow)
+        | otherwise = id
 
 main :: IO ()
 main = do

@@ -6,6 +6,7 @@ module Bark.Binary (
     , sourceHandle
     , conduitSplit
     , conduitHandle
+    , conduitShow
     ) where
 
 import Control.Monad.IO.Class   (liftIO)
@@ -16,7 +17,7 @@ import Data.Conduit
 import Data.Word                (Word8)
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import System.IO                (Handle)
+import System.IO                (Handle, stdout)
 
 import qualified Data.ByteString as BS
 
@@ -77,6 +78,14 @@ conduitHandle handle =
   where
     push h input = do
         liftIO $ BS.hPut h input
+        return $ IOProducing [input]
+
+conduitShow :: (Show a, MonadResource m) => Conduit a m a
+conduitShow =
+    conduitIO (return stdout) (\_ -> return ()) push (const $ return [])
+  where
+    push _ input = do
+        liftIO $ print input
         return $ IOProducing [input]
 
 --
