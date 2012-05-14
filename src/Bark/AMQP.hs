@@ -19,7 +19,6 @@ import Network.AMQP
 import Network.BSD                (getHostName)
 import Network.URI                (URI(..), URIAuth(..), parseURI)
 
-
 import qualified Data.ByteString   as BS
 import qualified Data.HashTable.IO as H
 import qualified Bark.Message      as M
@@ -27,9 +26,10 @@ import qualified Bark.Message      as M
 type HashTable k v = H.BasicHashTable k v
 
 data AMQPConn = AMQPConn
-    { amqpConn  :: Connection
-    , amqpChan  :: Channel
-    , amqpCache :: HashTable String QueueOpts
+    { amqpConn     :: Connection
+    , amqpChan     :: Channel
+    , amqpQueues   :: HashTable String Bool
+    , amqpBindings :: HashTable (String, String) Bool
     }
 
 sinkAMQP :: MonadResource m => URI -> String -> Sink M.Message m ()
@@ -48,16 +48,17 @@ disconnect = closeConnection . amqpConn
 
 connect :: URI -> String -> IO AMQPConn
 connect uri app = do
-    conn  <- open uri
-    chan  <- openChannel conn
-    cache <- H.new
+    conn   <- connection uri
+    chan   <- openChannel conn
+    cache1 <- H.new
+    cache2 <- H.new
 
     declareExchange chan newExchange { exchangeName = app, exchangeType = "topic", exchangeDurable = True }
 
-    return $ AMQPConn conn chan cache
+    return $ AMQPConn conn chan cache1 cache2
 
-open :: URI -> IO Connection
-open uri = do
+connection :: URI -> IO Connection
+connection uri = do
     openConnection host vhost user pwd
   where
     auth = URIAuth "guest:guest" "127.0.0.1" ""
@@ -77,33 +78,40 @@ publish conn@AMQPConn{..} msg = do
     body (M.Error err) = fromChunks [err]
 
 declare :: AMQPConn -> M.Message -> IO (String, String)
-declare conn@AMQPConn{..} msg = do
-    exists <- just $ H.lookup amqpCache queue
-    ensure exists conn exchange queue key
+declare conn msg = do
+    _ <- ensureQueue conn queue
+    _ <- ensureBound conn exchange queue key
     return (exchange, queue)
   where
     exchange = M.exchange msg
     queue    = M.queue msg
     key      = M.bindKey msg
 
-ensure :: Bool -> AMQPConn -> String -> String -> String -> IO ()
-ensure True _ _ _ _ = return ()
-ensure False AMQPConn{..} exchange queue key = do
-    H.insert amqpCache queue opts
-    declareQueue amqpChan opts
-    putStrLn $ "Bind: " ++ key
-    bindQueue amqpChan queue exchange key
+ensureQueue :: AMQPConn -> String -> IO ()
+ensureQueue AMQPConn{..} queue = do
+    exists <- H.lookup amqpQueues queue
+    case exists of
+        Nothing -> dec >> putStrLn ("Declare: " ++ queue) >> ins
+        Just _  -> return ()
   where
-    opts = newQueue { queueName = queue, queueDurable = True }
+    dec = declareQueue amqpChan newQueue { queueName = queue, queueDurable = True }
+    ins = H.insert amqpQueues queue True
+
+ensureBound :: AMQPConn -> String -> String -> String -> IO ()
+ensureBound AMQPConn{..} exchange queue key = do
+    exists <- H.lookup amqpBindings (queue, key)
+    case exists of
+        Nothing -> bind >> putStrLn ("Bind: " ++ key) >> ins
+        Just _  -> return ()
+  where
+    bind = bindQueue amqpChan queue exchange key
+    ins  = H.insert amqpBindings (queue, key) True
 
 hostName :: IO String
 hostName = getHostName >>= return . map f
   where
     f '.' = '_'
     f c   = toLower c
-
-just :: Monad m => m (Maybe a) -> m Bool
-just s = s >>= return . isJust
 
 trim :: String -> String
 trim = f . f

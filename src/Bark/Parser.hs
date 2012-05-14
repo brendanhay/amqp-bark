@@ -21,9 +21,8 @@ conduitMessage app =
     conduit
   where
     parse input = case parseOnly parser input of
-        Right msg -> msg
-        Left  err -> Message app "error" "error" . Error $ pack err
-
+        Right m -> m
+        Left  e -> Message app "error" "error" . Error $ pack e
     parser  = messageParser' app
     conduit = NeedInput push mempty
     push    = HaveOutput conduit (return ()) . parse
