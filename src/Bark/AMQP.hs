@@ -111,7 +111,7 @@ hostName :: IO String
 hostName = getHostName >>= return . map f
   where
     f '.' = '_'
-    f c   = toLower c
+    f c   = c
 
 trim :: String -> String
 trim = f . f
