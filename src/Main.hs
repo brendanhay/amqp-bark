@@ -28,7 +28,7 @@ parseMessages :: MonadResource m
               => Options
               -> Conduit BS.ByteString m Message
 parseMessages Options{..}  =
-    (conduitSplit delim optStrip) =$= conduitMessage optName
+    (conduitSplit delim optStrip) =$= conduitMessage
   where
     delim = fromString optDelimiter
 
@@ -50,6 +50,7 @@ main = do
 
     chan <- atomically $ newTBMChan optBound
     _    <- forkIO $ sinkStdin optBuffer chan
+
     sinkMessages chan opts
 
 --

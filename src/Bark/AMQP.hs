@@ -26,7 +26,8 @@ import qualified Bark.Message      as M
 type HashTable k v = H.BasicHashTable k v
 
 data AMQPConn = AMQPConn
-    { amqpConn     :: Connection
+    { amqpExchange :: String
+    , amqpConn     :: Connection
     , amqpChan     :: Channel
     , amqpQueues   :: HashTable String Bool
     , amqpBindings :: HashTable (String, String) Bool
@@ -56,7 +57,7 @@ connect uri app = do
     queues   <- H.new
     bindings <- H.new
 
-    return $ AMQPConn conn chan queues bindings
+    return $ AMQPConn app conn chan queues bindings
   where
     exchange = newExchange { exchangeName = app, exchangeType = "topic", exchangeDurable = True }
 
@@ -81,13 +82,12 @@ publish conn@AMQPConn{..} msg = do
     body (M.Error err) = fromChunks [err]
 
 declare :: AMQPConn -> M.Message -> IO (String, String)
-declare conn msg = do
+declare conn@AMQPConn{..} msg = do
     _ <- ensureQueue conn queue
-    _ <- ensureBound conn exchange queue key
-    return (exchange, queue)
+    _ <- ensureBound conn queue key
+    return (amqpExchange, queue)
   where
-    exchange = M.exchange msg
-    queue    = M.queue msg
+    queue    = M.queue msg amqpExchange
     key      = M.bindKey msg
 
 ensureQueue :: AMQPConn -> String -> IO ()
@@ -100,14 +100,14 @@ ensureQueue AMQPConn{..} queue = do
     dec = declareQueue amqpChan newQueue { queueName = queue, queueDurable = True }
     ins = H.insert amqpQueues queue True
 
-ensureBound :: AMQPConn -> String -> String -> String -> IO ()
-ensureBound AMQPConn{..} exchange queue key = do
+ensureBound :: AMQPConn -> String -> String -> IO ()
+ensureBound AMQPConn{..} queue key = do
     exists <- H.lookup amqpBindings (queue, key)
     case exists of
         Nothing -> bind >> putStrLn ("Bind: " ++ key) >> ins
         Just _  -> return ()
   where
-    bind = bindQueue amqpChan queue exchange key
+    bind = bindQueue amqpChan queue amqpExchange key
     ins  = H.insert amqpBindings (queue, key) True
 
 hostName :: IO String

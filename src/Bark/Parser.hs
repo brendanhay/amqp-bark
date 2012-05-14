@@ -16,14 +16,13 @@ import Bark.Message
 import qualified Data.Attoparsec.Char8 as AC
 import qualified Data.ByteString       as BS
 
-conduitMessage :: MonadResource m => String -> Conduit BS.ByteString m Message
-conduitMessage app =
+conduitMessage :: MonadResource m => Conduit BS.ByteString m Message
+conduitMessage =
     conduit
   where
     parse input = case parseOnly parser input of
         Right m -> m
-        Left  e -> Message app "error" "error" . Error $ pack e
-    parser  = messageParser' app
+        Left  e -> Message "error" "error" . Error $ pack e
     conduit = NeedInput push mempty
     push    = HaveOutput conduit (return ()) . parse
 
@@ -38,9 +37,9 @@ unbracket = AC.char8 ']'
 bracketedValue :: Parser BS.ByteString
 bracketedValue = bracket *> AC.takeTill (== ']') <* unbracket
 
-messageParser' :: String -> Parser Message
-messageParser' app = do
+parser :: Parser Message
+parser = do
     severity <- bracketedValue
     category <- bracketedValue <|> pure defaultSeverity
     body     <- takeByteString
-    return $! Message app severity category (Payload body)
+    return $! Message severity category (Payload body)

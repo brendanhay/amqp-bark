@@ -5,7 +5,6 @@ module Bark.Message (
     , Message(..)
     , defaultSeverity
     , defaultMessage
-    , exchange
     , queue
     , publishKey
     , bindKey
@@ -19,8 +18,7 @@ import qualified Data.ByteString  as BS
 data Body = Payload BS.ByteString | Error BS.ByteString deriving (Eq, Show)
 
 data Message = Message
-    { msgApp      :: !String
-    , msgCategory :: !BS.ByteString
+    { msgCategory :: !BS.ByteString
     , msgSeverity :: !BS.ByteString
     , msgBody     :: !Body
     } deriving (Eq, Show)
@@ -29,17 +27,13 @@ defaultSeverity :: BS.ByteString
 defaultSeverity = "INFO"
 
 defaultMessage = Message
-    { msgApp      = ""
-    , msgCategory = BS.empty
+    { msgCategory = BS.empty
     , msgSeverity = defaultSeverity
     , msgBody     = Payload BS.empty
     }
 
-exchange :: Message -> String
-exchange Message{..} = msgApp
-
-queue :: Message -> String
-queue Message{..} = safe [pack msgApp, msgCategory, msgSeverity]
+queue :: Message -> String -> String
+queue Message{..} app = safe [pack app, msgCategory, msgSeverity]
 
 publishKey :: Message -> String -> String
 publishKey Message{..} prefix = safe [pack prefix, msgCategory, msgSeverity]
