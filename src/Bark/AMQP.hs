@@ -48,14 +48,17 @@ disconnect = closeConnection . amqpConn
 
 connect :: URI -> String -> IO AMQPConn
 connect uri app = do
-    conn   <- connection uri
-    chan   <- openChannel conn
-    cache1 <- H.new
-    cache2 <- H.new
+    conn <- connection uri
+    chan <- openChannel conn
 
-    declareExchange chan newExchange { exchangeName = app, exchangeType = "topic", exchangeDurable = True }
+    declareExchange chan exchange
 
-    return $ AMQPConn conn chan cache1 cache2
+    queues   <- H.new
+    bindings <- H.new
+
+    return $ AMQPConn conn chan queues bindings
+  where
+    exchange = newExchange { exchangeName = app, exchangeType = "topic", exchangeDurable = True }
 
 connection :: URI -> IO Connection
 connection uri = do
