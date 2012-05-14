@@ -5,19 +5,14 @@ module Bark.Options (
     , parseOptions
     ) where
 
-import Data.ByteString.Internal (c2w)
-import Data.ByteString.Char8 (pack)
-import Data.Either
+import Control.Monad      (when)
 import Data.Maybe         (fromJust)
-import Data.Version
 import Data.Word          (Word8)
+import Data.Version
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
-import System.Exit
+import System.Exit        (ExitCode(..), exitWith)
 import Network.URI        (URI(..), parseURI)
-
-import qualified Control.Monad as M
-import qualified Data.ByteString as BS
 
 data Options = Options
     { optDelimiter :: String
@@ -57,15 +52,15 @@ version = Version
 
 validate :: Options -> IO Options
 validate opts@Options{..} = do
-    when (null optDelimiter)   "--delimiter cannot be blank"
-    when (null optName)        "--name cannot be blank"
-    when (not $ optBuffer > 0) "--buffer must be greater than zero"
-    when (not $ optBound > 0)  "--bound must be greater than zero"
+    exitWhen (null optDelimiter)   "--delimiter cannot be blank"
+    exitWhen (null optName)        "--name cannot be blank"
+    exitWhen (not $ optBuffer > 0) "--buffer must be greater than zero"
+    exitWhen (not $ optBound > 0)  "--bound must be greater than zero"
 
     return opts
 
-when :: Bool -> String -> IO ()
-when p msg = M.when p $ putStrLn msg >> exitWith (ExitFailure 1)
+exitWhen :: Bool -> String -> IO ()
+exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
 defaults :: Options
 defaults = Options

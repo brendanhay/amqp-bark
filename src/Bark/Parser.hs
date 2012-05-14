@@ -3,65 +3,44 @@
 module Bark.Parser (
       Message(..)
     , conduitMessage
-    , conduitMessage'
     ) where
 
-import Prelude hiding (null)
-import Control.Applicative hiding (empty)
+import Control.Applicative
 import Data.Attoparsec
-import Data.ByteString.Char8
-import Data.ByteString.Internal   (c2w)
 import Data.Conduit
-import Data.Monoid                (mempty)
-import GHC.Word (Word8)
-import Data.Conduit.Attoparsec (ParseError(..), sinkParser)
+import Data.Monoid (mempty)
+import GHC.Word    (Word8)
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString       as BS
 import qualified Data.Attoparsec.Char8 as AC
 
+newtype Severity = Severity BS.ByteString deriving (Eq, Show)
+
+newtype Category = Category BS.ByteString deriving (Eq, Show)
+
+data Body = Payload BS.ByteString | Error String deriving (Eq, Show)
+
 data Message = Message
-    { msgSeverity :: !ByteString
-    , msgCategory :: !ByteString
-    , msgBody     :: !ByteString
+    { msgSeverity :: !Severity
+    , msgCategory :: !Category
+    , msgBody     :: !Body
     } deriving (Eq, Show)
 
-conduitMessage :: MonadResource m
-               => Conduit ByteString m Message
+defaultMessage = Message
+    { msgSeverity = Severity BS.empty
+    , msgCategory = Category BS.empty
+    , msgBody     = Payload BS.empty
+    }
+
+conduitMessage :: MonadResource m => Conduit BS.ByteString m Message
 conduitMessage =
     conduit
   where
     conduit     = NeedInput push mempty
     push        = HaveOutput conduit (return ()) . parse
-    parse input = case parseOnly message input of
+    parse input = case parseOnly messageParser' input of
         Right msg -> msg
-        Left  err -> Message (pack "ERROR") (pack "error") (pack err)
-
-conduitMessage' :: MonadThrow m
-               => Conduit ByteString m Message
-conduitMessage' = conduitParser message'
-
-conduitParser :: MonadThrow m
-              => Parser b
-              -> Conduit ByteString m b
-conduitParser p0 = conduitState newParser push close
-  where
-    newParser = parse (many1 p0)
-    push _ c
-        | null c = return $ StateFinished Nothing []
-    push parser c = do
-        case feed (parser c) empty of
-            AC.Done leftover xs
-                | null leftover ->
-                    return $ StateProducing newParser xs
-                | otherwise ->
-                    return $ StateProducing (newParser . append leftover) xs
-            AC.Fail _ contexts msg -> monadThrow $ ParseError contexts msg
-            AC.Partial p -> return $ StateProducing p []
-    close parser =
-        case parser empty of
-            AC.Done _leftover xs -> return xs
-            AC.Fail _ contexts msg -> monadThrow $ ParseError contexts msg
-            AC.Partial _ -> return [] -- A partial parse when closing is not an error
+        Left  err -> Message (Severity "ERROR") (Category "error") (Error err)
 
 --
 -- Internal
@@ -71,21 +50,12 @@ bracket, unbracket :: Parser Word8
 bracket   = AC.char8 '['
 unbracket = AC.char8 ']'
 
-fromBrackets :: Parser ByteString
-fromBrackets = bracket *> AC.takeTill (== ']') <* unbracket
+bracketedValue :: Parser BS.ByteString
+bracketedValue = bracket *> AC.takeTill (== ']') <* unbracket
 
--- parse exact
-message :: Parser Message
-message = do
-    severity <- fromBrackets
-    category <- fromBrackets <|> pure empty
+messageParser' :: Parser Message
+messageParser' = do
+    severity <- bracketedValue
+    category <- bracketedValue <|> pure BS.empty
     body     <- takeByteString
-    return $! Message severity category body
-
--- parse incremental
-message' :: Parser Message
-message' = do
-    severity <- fromBrackets
-    category <- fromBrackets <|> pure empty
-    body     <- manyTill (satisfy $ const True) $ AC.char8 '\n'
-    return $! Message severity category (BS.pack body)
+    return $! Message (Severity severity) (Category category) (Payload body)

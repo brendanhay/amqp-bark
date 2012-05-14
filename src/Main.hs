@@ -18,21 +18,43 @@ import Bark.Parser
 
 import qualified Data.ByteString as BS
 
-source :: TBMChan BS.ByteString -> Options -> IO ()
-source chan Options{..} =
-     runResourceT
-         $  sourceHandle stdin optBuffer
-         $$ sinkTBMChan chan
+sinkStdin :: Int -> TBMChan BS.ByteString -> IO ()
+sinkStdin buffer chan =
+    runResourceT
+        $  sourceHandle stdin buffer
+        $$ sinkTBMChan chan
 
-conduits :: MonadResource m
-         => Options
-         -> Conduit BS.ByteString m Message
-conduits Options{..} =
-    (tee $ split) =$= conduitMessage
+parseMessages :: MonadResource m
+              => Options
+              -> Conduit BS.ByteString m Message
+parseMessages Options{..}  =
+    splitDelimiter =$= conduitMessage
   where
-    split = conduitSplit (fromString optDelimiter) optStrip
+    splitDelimiter  = tee $ conduitSplit (fromString optDelimiter) optStrip
     tee | optTee    = (=$= conduitHandle stdout)
         | otherwise = id
+
+sinkMessages :: TBMChan BS.ByteString -> Options -> IO ()
+sinkMessages chan opts@Options{..} =
+    runResourceT
+        $  sourceTBMChan chan
+        $= parseMessages opts
+        $$ sinkAMQP uri
+  where
+    uri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
+
+main :: IO ()
+main = do
+    opts@Options{..} <- parseOptions
+    putStrLn $ show opts
+
+    chan <- atomically $ newTBMChan optBound
+    _    <- forkIO $ sinkStdin optBuffer chan
+    sinkMessages chan opts
+
+--
+-- Development
+--
 
 sinkPrint :: MonadIO m => Sink Message m ()
 sinkPrint =
@@ -42,24 +64,3 @@ sinkPrint =
         (liftIO (print msg) >> return (NeedInput push close))
         (return ())
     close = return ()
-
-sink :: TBMChan BS.ByteString -> Options -> IO ()
-sink chan opts =
-    runResourceT
-        $  sourceTBMChan chan
---        $= conduits opts
-        $= conduitMessage'
---        $$ sinkAMQP uri
-        $$ sinkPrint
-  where
-    uri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
-
-main :: IO ()
-main = do
-    opts@Options{..} <- parseOptions
-
-    putStrLn $ show opts
-
-    chan <- atomically $ newTBMChan optBound
-    _    <- forkIO $ source chan opts
-    sink chan opts
