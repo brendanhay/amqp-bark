@@ -32,6 +32,12 @@ parseMessages Options{..}  =
   where
     delim = fromString optDelimiter
 
+parseMessages' :: MonadResource m
+              => Options
+              -> Conduit BS.ByteString m Message
+parseMessages' Options{..}  =
+    conduitMessage' optDelimiter
+
 sinkMessages :: TBMChan BS.ByteString -> Options -> IO ()
 sinkMessages chan opts@Options{..} =
     runResourceT
@@ -51,6 +57,9 @@ main = do
     chan <- atomically $ newTBMChan optBound
     _    <- forkIO $ sinkStdin optBuffer chan
     sinkMessages chan opts
+
+
+-- measure applying the attoparsecSink in a loop
 
 --
 -- Development

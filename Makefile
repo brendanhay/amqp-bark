@@ -1,6 +1,7 @@
 .PHONY: all clean conf build
 
-all: conf build
+build:
+	cabal build
 
 clean:
 	cabal clean
@@ -8,5 +9,4 @@ clean:
 conf: clean
 	cabal configure
 
-build:
-	cabal build
+all: conf build

@@ -46,5 +46,6 @@ executable amqp-bark
                   , cmdargs
                   , amqp
                   , attoparsec
+                  , attoparsec-conduit
                   , aeson
                   , hashtables
