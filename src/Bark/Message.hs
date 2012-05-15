@@ -11,6 +11,7 @@ module Bark.Message (
     ) where
 
 import Data.ByteString.Char8 (pack, unpack)
+import Data.Char             (toLower)
 import Data.List             (intercalate)
 
 import qualified Data.ByteString  as BS
@@ -47,4 +48,4 @@ bindKey msg = publishKey msg "*"
 --
 
 safe :: [BS.ByteString] -> String
-safe = intercalate "." . map unpack
+safe = map toLower . intercalate "." . map unpack

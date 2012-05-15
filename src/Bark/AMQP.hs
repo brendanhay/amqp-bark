@@ -72,12 +72,11 @@ publish :: AMQPConn -> M.Message -> IO ()
 publish conn@AMQPConn{..} msg = do
     (exchange, _) <- declare conn msg
     host          <- hostName
-    putStrLn $ "Publish: " ++ (M.publishKey msg host)
     publishMsg amqpChan exchange (M.publishKey msg host) payload
   where
-    payload            = newMsg { msgBody = body $ M.msgBody msg }
-    body (M.Payload b) = fromChunks [b]
-    body (M.Error err) = fromChunks [err]
+    payload            = newMsg { msgBody = fromChunks . body $ M.msgBody msg }
+    body (M.Payload b) = [b]
+    body (M.Error err) = [err]
 
 declare :: AMQPConn -> M.Message -> IO (String, String)
 declare conn@AMQPConn{..} msg = do
@@ -92,7 +91,7 @@ ensureQueue :: AMQPConn -> String -> IO ()
 ensureQueue AMQPConn{..} queue = do
     exists <- H.lookup amqpQueues queue
     case exists of
-        Nothing -> dec >> putStrLn ("Declare: " ++ queue) >> ins
+        Nothing -> dec >> putStrLn ("Declare Q:" ++ queue) >> ins
         Just _  -> return ()
   where
     dec = declareQueue amqpChan newQueue { queueName = queue, queueDurable = True }
@@ -102,11 +101,12 @@ ensureBound :: AMQPConn -> String -> String -> IO ()
 ensureBound AMQPConn{..} queue key = do
     exists <- H.lookup amqpBindings (queue, key)
     case exists of
-        Nothing -> bind >> putStrLn ("Bind: " ++ key) >> ins
+        Nothing -> bind >> putStrLn inf >> ins
         Just _  -> return ()
   where
     bind = bindQueue amqpChan queue amqpExchange key
     ins  = H.insert amqpBindings (queue, key) True
+    inf  = concat ["Binding Q:", queue, ", K:", key]
 
 hostName :: IO String
 hostName = getHostName >>= return . map f

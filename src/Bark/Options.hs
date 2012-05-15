@@ -5,13 +5,13 @@ module Bark.Options (
     , parseOptions
     ) where
 
-import Control.Monad      (when)
-import Data.Maybe         (fromJust)
+import Control.Monad                 (when)
+import Data.Maybe                    (fromJust)
 import Data.Version
-import System.Console.CmdArgs
-import System.Environment (getArgs, withArgs)
-import System.Exit        (ExitCode(..), exitWith)
-import Network.URI        (URI(..), parseURI)
+import System.Console.CmdArgs hiding (args)
+import System.Environment            (getArgs, withArgs)
+import System.Exit                   (ExitCode(..), exitWith)
+import Network.URI                   (URI(..), parseURI)
 
 data Options = Options
     { optDelimiter :: String

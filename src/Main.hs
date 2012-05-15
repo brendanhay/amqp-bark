@@ -50,7 +50,6 @@ main = do
 
     chan <- atomically $ newTBMChan optBound
     _    <- forkIO $ sinkStdin optBuffer chan
-
     sinkMessages chan opts
 
 --

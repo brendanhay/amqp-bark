@@ -1,6 +1,6 @@
-.PHONY: all clean build
+.PHONY: all clean conf build
 
-all: build
+all: conf build
 
 clean:
 	cabal clean
@@ -10,6 +10,3 @@ conf: clean
 
 build:
 	cabal build
-
-run: build
-	./bark
