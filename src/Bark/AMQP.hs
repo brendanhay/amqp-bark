@@ -1,8 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Bark.AMQP (
-      sinkAMQP
-    , URI
+      URI
+    , sinkAMQP
     , parseURI
     ) where
 
