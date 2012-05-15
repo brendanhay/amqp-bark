@@ -1,32 +1,36 @@
 {-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
 
 module Bark.Options (
-      Options(..)
+      Style(..)
+    , Options(..)
     , parseOptions
     ) where
 
-import Control.Monad                 (when)
-import Data.Maybe                    (fromJust)
+import Control.Monad      (when)
+import Data.Maybe         (fromJust)
 import Data.Version
-import System.Console.CmdArgs hiding (args)
-import System.Environment            (getArgs, withArgs)
-import System.Exit                   (ExitCode(..), exitWith)
-import Network.URI                   (URI(..), parseURI)
+import System.Console.CmdArgs
+import System.Environment (getArgs, withArgs)
+import System.Exit        (ExitCode(..), exitWith)
+import Network.URI        (URI(..), parseURI)
+
+data Style = Exact | Incremental deriving (Data, Typeable, Show, Eq)
 
 data Options = Options
     { optDelimiter :: String
-    , optName      :: String
+    , optService   :: String
     , optUri       :: URI
     , optBuffer    :: Int
     , optBound     :: Int
+    , optParser    :: Style
     , optTee       :: Bool
     , optStrip     :: Bool
     } deriving (Data, Typeable, Show, Eq)
 
 parseOptions :: IO Options
 parseOptions = do
-    args <- getArgs
-    opts <- (if null args then withArgs ["--help"] else id) options
+    argz <- getArgs
+    opts <- (if null argz then withArgs ["--help"] else id) options
     validate opts
 
 options :: IO Options
@@ -52,7 +56,7 @@ version = Version
 validate :: Options -> IO Options
 validate opts@Options{..} = do
     exitWhen (null optDelimiter)   "--delimiter cannot be blank"
-    exitWhen (null optName)        "--name cannot be blank"
+    exitWhen (null optService)     "--service cannot be blank"
     exitWhen (not $ optBuffer > 0) "--buffer must be greater than zero"
     exitWhen (not $ optBound > 0)  "--bound must be greater than zero"
 
@@ -69,10 +73,16 @@ defaults = Options
         &= help "A byte or string denoting output (default: \\n)"
         &= explicit
 
-    , optName = ""
-        &= name "name"
-        &= typ  "NAME"
-        &= help "The application name (required)"
+    , optService = ""
+        &= name "service"
+        &= typ  "SERVICE"
+        &= help "The application service name (required)"
+        &= explicit
+
+    , optUri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
+        &= name "amqp-uri"
+        &= typ  "URI"
+        &= help "The amqp uri (default: guest@localhost)"
         &= explicit
 
     , optBuffer = 4096
@@ -87,10 +97,9 @@ defaults = Options
         &= help "The max number of '--buffer' chunks (default: 512)"
         &= explicit
 
-    , optUri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
-        &= name "amqp-uri"
-        &= typ  "URI"
-        &= help "The amqp uri (default: guest@localhost)"
+    , optParser = Exact
+        &= name "parser"
+        &= help "Use exact | incremental parsing (default: exact)"
         &= explicit
 
     , optStrip = False

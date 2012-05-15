@@ -5,7 +5,6 @@ module Bark.Message.Exact (
     , conduitMessage
     ) where
 
-import Control.Applicative
 import Data.Attoparsec
 import Data.ByteString.Char8    (pack)
 import Data.ByteString.Internal (ByteString(PS), c2w, memchr, inlinePerformIO)
@@ -13,12 +12,12 @@ import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop, unsafeTail)
 import Data.Conduit
 import Data.Monoid              (mempty)
 import Data.Word                (Word8)
-import Foreign.ForeignPtr
-import Foreign.Ptr
+import Foreign.ForeignPtr       (withForeignPtr)
+import Foreign.Ptr              (nullPtr, plusPtr, minusPtr)
 import Bark.Message.Types
+import Bark.Message.Parser
 
-import qualified Data.Attoparsec.Char8 as AC
-import qualified Data.ByteString       as BS
+import qualified Data.ByteString as BS
 
 conduitMessage :: MonadResource m
                => String
@@ -51,23 +50,16 @@ instance Delimiter Word8 where
 instance Delimiter BS.ByteString where
     split = breakString
 
-bracket, unbracket :: Parser Word8
-bracket   = AC.char8 '['
-unbracket = AC.char8 ']'
-
-bracketedValue :: Parser BS.ByteString
-bracketedValue = bracket *> AC.takeTill (== ']') <* unbracket
-
-parser :: Parser Message
-parser = do
-    severity <- bracketedValue
-    category <- bracketedValue <|> pure defaultSeverity
-    body     <- takeByteString
-    return $! Message severity category (Payload body)
-
 fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
                | otherwise        = AnyDelimiter . c2w $ head str
+
+parser :: Parser Message
+parser = do
+    sev  <- severity
+    cat  <- category
+    body <- takeByteString
+    return $! Message sev cat (Payload body)
 
 conduitSplit :: (Delimiter d, Monad m)
              => d

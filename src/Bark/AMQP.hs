@@ -29,8 +29,8 @@ data AMQPConn = AMQPConn
     }
 
 sinkAMQP :: MonadResource m => URI -> String -> Sink M.Message m ()
-sinkAMQP uri app =
-    sinkIO (connect uri app) disconnect push close
+sinkAMQP uri service =
+    sinkIO (connect uri service) disconnect push close
   where
     push conn msg = liftIO $ publish conn msg >> return IOProcessing
     close conn    = liftIO $ disconnect conn >> return ()
@@ -43,7 +43,7 @@ disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn
 
 connect :: URI -> String -> IO AMQPConn
-connect uri app = do
+connect uri service = do
     conn <- connection uri
     chan <- openChannel conn
 
@@ -52,9 +52,9 @@ connect uri app = do
     queues   <- H.new
     bindings <- H.new
 
-    return $ AMQPConn app conn chan queues bindings
+    return $ AMQPConn service conn chan queues bindings
   where
-    exchange = newExchange { exchangeName = app, exchangeType = "topic", exchangeDurable = True }
+    exchange = newExchange { exchangeName = service, exchangeType = "topic", exchangeDurable = True }
 
 connection :: URI -> IO Connection
 connection uri = do
