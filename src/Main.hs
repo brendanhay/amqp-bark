@@ -27,16 +27,15 @@ sinkStdin buffer chan =
 parseMessages :: MonadResource m
               => Options
               -> Conduit BS.ByteString m Message
-parseMessages Options{..}  =
+parseMessages Options{..} =
     (conduitSplit delim optStrip) =$= conduitMessage
   where
     delim = fromString optDelimiter
 
 parseMessages' :: MonadResource m
-              => Options
-              -> Conduit BS.ByteString m Message
-parseMessages' Options{..}  =
-    conduitMessage' optDelimiter
+               => Options
+               -> Conduit BS.ByteString m Message
+parseMessages' Options{..} = conduitMessage' optDelimiter
 
 sinkMessages :: TBMChan BS.ByteString -> Options -> IO ()
 sinkMessages chan opts@Options{..} =
