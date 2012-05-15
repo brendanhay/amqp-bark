@@ -42,6 +42,8 @@ sinkMessages chan Options{..} =
 main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
-    chan             <- atomically $ newTBMChan optBound
-    _                <- forkIO $ sinkStdin optBuffer chan
+    print opts
+
+    chan <- atomically $ newTBMChan optBound
+    _    <- forkIO $ sinkStdin optBuffer chan
     sinkMessages chan opts

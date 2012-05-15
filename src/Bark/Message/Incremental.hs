@@ -24,14 +24,14 @@ conduitMessage delim _ = conduitParser $ parser delim
 -- Internal
 --
 
-conduitParser :: (MonadThrow m)
+conduitParser :: MonadResource m
               => Parser b
               -> Conduit BS.ByteString m b
 conduitParser p0 = conduitState newParser push close
   where
     newParser = parse (many1 p0)
     push _ c
-        | BS.null c = return $ StateFinished Nothing []
+       | BS.null c = return $ StateFinished Nothing []
     push parser' c = do
         case feed (parser' c) BS.empty of
             Done leftover xs
@@ -39,13 +39,13 @@ conduitParser p0 = conduitState newParser push close
                     return $ StateProducing newParser xs
                 | otherwise ->
                     return $ StateProducing (newParser . BS.append leftover) xs
-            Fail _ contexts msg -> monadThrow $ ParseError contexts msg
+            Fail _ contexts msg -> return $ StateProducing newParser []
             Partial p -> return $ StateProducing p []
     close parser' =
         case parser' BS.empty of
-            Done _leftover xs -> return xs
-            Fail _ contexts msg -> monadThrow $ ParseError contexts msg
-            Partial _ -> return []
+            Done _leftover xs   -> return xs
+            Fail _ contexts msg -> return []
+            Partial _           -> return []
 
 parser :: String -> Parser Message
 parser delim = do
