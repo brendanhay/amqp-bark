@@ -24,7 +24,7 @@ conduitMessage :: MonadResource m
                -> Bool
                -> Conduit BS.ByteString m Message
 conduitMessage delim strip =
-    (conduitSplit (fromString delim) strip) =$= conduit
+    conduitSplit (fromString delim) strip =$= conduit
   where
     msg input = case parseOnly parser input of
         Right m -> m
