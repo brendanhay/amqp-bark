@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
-module Bark.Message (
+module Bark.Message.Types (
       Body(..)
     , Message(..)
     , defaultSeverity

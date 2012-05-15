@@ -1,25 +1,41 @@
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE OverloadedStrings, ExistentialQuantification #-}
 
-module Bark.Binary (
-      Delimiter(..)
-    , fromString
-    , sourceHandle
-    , conduitSplit
-    , conduitHandle
-    , conduitShow
+module Bark.Message.Exact (
+      Message(..)
+    , conduitMessage
     ) where
 
-import Control.Monad.IO.Class   (liftIO)
+import Control.Applicative
+import Data.Attoparsec
 import Data.ByteString.Char8    (pack)
 import Data.ByteString.Internal (ByteString(PS), c2w, memchr, inlinePerformIO)
 import Data.ByteString.Unsafe   (unsafeTake, unsafeDrop, unsafeTail)
 import Data.Conduit
+import Data.Monoid              (mempty)
 import Data.Word                (Word8)
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import System.IO                (Handle, stdout)
+import Bark.Message.Types
 
-import qualified Data.ByteString as BS
+import qualified Data.Attoparsec.Char8 as AC
+import qualified Data.ByteString       as BS
+
+conduitMessage :: MonadResource m
+               => String
+               -> Bool
+               -> Conduit BS.ByteString m Message
+conduitMessage delim strip =
+    (conduitSplit (fromString delim) strip) =$= conduit
+  where
+    msg input = case parseOnly parser input of
+        Right m -> m
+        Left  e -> Message "error" "error" . Error $ pack e
+    conduit = NeedInput push mempty
+    push    = HaveOutput conduit (return ()) . msg
+
+--
+-- Internal
+--
 
 data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
 
@@ -35,24 +51,23 @@ instance Delimiter Word8 where
 instance Delimiter BS.ByteString where
     split = breakString
 
+bracket, unbracket :: Parser Word8
+bracket   = AC.char8 '['
+unbracket = AC.char8 ']'
+
+bracketedValue :: Parser BS.ByteString
+bracketedValue = bracket *> AC.takeTill (== ']') <* unbracket
+
+parser :: Parser Message
+parser = do
+    severity <- bracketedValue
+    category <- bracketedValue <|> pure defaultSeverity
+    body     <- takeByteString
+    return $! Message severity category (Payload body)
+
 fromString :: String -> AnyDelimiter
 fromString str | (length str) > 1 = AnyDelimiter $ pack str
                | otherwise        = AnyDelimiter . c2w $ head str
-
-sourceHandle :: MonadResource m
-             => Handle
-             -> Int
-             -> Source m BS.ByteString
-sourceHandle handle buffer =
-    source
-  where
-    source = PipeM pull close
-    pull = do
-        bstr <- liftIO (BS.hGetSome handle buffer)
-        if BS.null bstr
-            then return $ Done Nothing ()
-            else return $ HaveOutput source close bstr
-    close = return ()
 
 conduitSplit :: (Delimiter d, Monad m)
              => d
@@ -69,28 +84,6 @@ conduitSplit delim strip =
             buffer          = BS.append state input
             (matches, rest) = split delim strip buffer
     close state = return [state]
-
-conduitHandle :: MonadResource m
-              => Handle
-              -> Conduit BS.ByteString m BS.ByteString
-conduitHandle handle =
-    conduitIO (return handle) (\_ -> return ()) push (const $ return [])
-  where
-    push h input = do
-        liftIO $ BS.hPut h input
-        return $ IOProducing [input]
-
-conduitShow :: (Show a, MonadResource m) => Conduit a m a
-conduitShow =
-    conduitIO (return stdout) (\_ -> return ()) push (const $ return [])
-  where
-    push _ input = do
-        liftIO $ print input
-        return $ IOProducing [input]
-
---
--- Internal
---
 
 breakByte :: Word8
           -> Bool

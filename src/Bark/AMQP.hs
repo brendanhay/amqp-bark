@@ -1,10 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Bark.AMQP (
-    -- * Sources, Sinks, and Conduits
       sinkAMQP
-
-    -- * Text.URI re-exports
     , URI
     , parseURI
     ) where
@@ -18,8 +15,8 @@ import Network.AMQP
 import Network.BSD                (getHostName)
 import Network.URI                (URI(..), URIAuth(..), parseURI)
 
-import qualified Data.HashTable.IO as H
-import qualified Bark.Message      as M
+import qualified Data.HashTable.IO  as H
+import qualified Bark.Message.Types as M
 
 type HashTable k v = H.BasicHashTable k v
 
