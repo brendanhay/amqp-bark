@@ -11,15 +11,13 @@ module Bark.AMQP (
 
 import Control.Monad.IO.Class     (MonadIO, liftIO)
 import Data.ByteString.Lazy.Char8 (fromChunks)
-import Data.Char                  (toLower)
 import Data.Conduit
-import Data.Maybe                 (fromJust, fromMaybe, isJust)
+import Data.Maybe                 (fromMaybe)
 import Data.List.Split            (splitOn)
 import Network.AMQP
 import Network.BSD                (getHostName)
 import Network.URI                (URI(..), URIAuth(..), parseURI)
 
-import qualified Data.ByteString   as BS
 import qualified Data.HashTable.IO as H
 import qualified Bark.Message      as M
 

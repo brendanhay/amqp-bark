@@ -7,7 +7,6 @@ module Bark.Options (
 
 import Control.Monad      (when)
 import Data.Maybe         (fromJust)
-import Data.Word          (Word8)
 import Data.Version
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)

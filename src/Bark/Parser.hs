@@ -20,11 +20,11 @@ conduitMessage :: MonadResource m => Conduit BS.ByteString m Message
 conduitMessage =
     conduit
   where
-    parse input = case parseOnly parser input of
+    msg input = case parseOnly parser input of
         Right m -> m
         Left  e -> Message "error" "error" . Error $ pack e
     conduit = NeedInput push mempty
-    push    = HaveOutput conduit (return ()) . parse
+    push    = HaveOutput conduit (return ()) . msg
 
 --
 -- Internal

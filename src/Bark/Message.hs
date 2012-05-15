@@ -26,6 +26,7 @@ data Message = Message
 defaultSeverity :: BS.ByteString
 defaultSeverity = "INFO"
 
+defaultMessage :: Message
 defaultMessage = Message
     { msgCategory = BS.empty
     , msgSeverity = defaultSeverity
