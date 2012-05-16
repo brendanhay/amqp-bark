@@ -27,11 +27,15 @@ def prefix
 end
 
 input = ARGV.shift
+n = 0
 
 File.open("prefix.log", "w") do |outp|
-  1000.times do
+  while n < 1000000
     File.open(input, "r") do |inp|
-      inp.each_line { |line| outp.puts prefix + line }
+      inp.each_line do |line|
+        outp.puts prefix + line
+        n += 1
+      end
     end
   end
 end
