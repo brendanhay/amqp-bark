@@ -17,6 +17,7 @@ severity :: Parser BS.ByteString
 severity = bracketedValue
 {-# INLINE severity #-}
 
+
 category :: Parser BS.ByteString
 category = bracketedValue <|> pure defaultSeverity
 {-# INLINE category #-}

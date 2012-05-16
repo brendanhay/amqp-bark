@@ -30,7 +30,7 @@ input = ARGV.shift
 n = 0
 
 File.open("prefix.log", "w") do |outp|
-  while n < 1000000
+  while n < 450000
     File.open(input, "r") do |inp|
       inp.each_line do |line|
         outp.puts prefix + line
