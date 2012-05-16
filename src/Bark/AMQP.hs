@@ -79,18 +79,6 @@ trim = f . f
   where
     f = reverse . dropWhile (== '@')
 
-publish :: AMQPConn -> M.Message -> IO ()
-publish conn@AMQPConn{..} msg = do
-    Binding{..} <- declare conn msg
-    publishMsg amqpChan boundExchange boundKey $ payload msg
-
-payload :: M.Message -> Message
-payload M.Message{..} =
-    newMsg { msgBody = fromChunks $ chunk msgBody }
-  where
-    chunk (M.Payload pay) = [pay]
-    chunk (M.Error err)   = [err]
-
 declare :: AMQPConn -> M.Message -> IO Binding
 declare conn@AMQPConn{..} msg@M.Message{..} = do
     exists <- H.lookup amqpBindings idx
@@ -110,3 +98,15 @@ bind AMQPConn{..} msg idx = do
     queue = unpack $ M.queue msg $ pack amqpExchange
     key   = unpack $ M.bindKey msg
     res   = Binding amqpExchange queue key
+
+publish :: AMQPConn -> M.Message -> IO ()
+publish conn@AMQPConn{..} msg = do
+    Binding{..} <- declare conn msg
+    publishMsg amqpChan boundExchange boundKey $ payload msg
+
+payload :: M.Message -> Message
+payload M.Message{..} =
+    newMsg { msgBody = fromChunks $ chunk msgBody }
+  where
+    chunk (M.Payload pay) = [pay]
+    chunk (M.Error err)   = [err]
