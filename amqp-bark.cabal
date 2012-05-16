@@ -30,21 +30,17 @@ executable amqp-bark
                     -with-rtsopts=-p
 
   build-depends:    base >= 4.3 && < 5
-                  , hashable
                   , transformers
-                  , unix
-                  , split
                   , bytestring
-                  , utf8-string
-                  , time
                   , network
+                  , resourcet
                   , conduit
                   , stm
                   , stm-conduit
-                  , resourcet
-                  , cmdargs
-                  , amqp
                   , attoparsec
                   , attoparsec-conduit
-                  , aeson
+                  , cmdargs
+                  , amqp
                   , hashtables
+                  , hashable
+                  , split
