@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Bark.AMQP (
       URI
@@ -7,30 +7,32 @@ module Bark.AMQP (
     ) where
 
 import Control.Monad.IO.Class     (MonadIO, liftIO)
+import Data.ByteString.Char8      (pack, unpack)
 import Data.ByteString.Lazy.Char8 (fromChunks)
 import Data.Conduit
 import Data.Maybe                 (fromMaybe)
 import Data.List.Split            (splitOn)
 import Network.AMQP
-import Network.BSD                (getHostName)
 import Network.URI                (URI(..), URIAuth(..), parseURI)
 
+import qualified Data.ByteString    as BS
 import qualified Data.HashTable.IO  as H
 import qualified Bark.Message.Types as M
 
-type HashTable k v = H.BasicHashTable k v
+type Set k = H.BasicHashTable k Bool
 
 data AMQPConn = AMQPConn
-    { amqpExchange :: String
+    { amqpLocal    :: BS.ByteString
+    , amqpExchange :: BS.ByteString
     , amqpConn     :: Connection
     , amqpChan     :: Channel
-    , amqpQueues   :: HashTable String Bool
-    , amqpBindings :: HashTable (String, String) Bool
+    , amqpQueues   :: Set BS.ByteString
+    , amqpBindings :: Set (BS.ByteString, BS.ByteString)
     }
 
-sinkAMQP :: MonadResource m => URI -> String -> Sink M.Message m ()
-sinkAMQP uri service =
-    sinkIO (connect uri service) disconnect push close
+sinkAMQP :: MonadResource m => URI -> String -> String -> Sink M.Message m ()
+sinkAMQP uri hostname service =
+    sinkIO (connect uri hostname service) disconnect push close
   where
     push conn msg = liftIO $ publish conn msg >> return IOProcessing
     close conn    = liftIO $ disconnect conn >> return ()
@@ -42,8 +44,8 @@ sinkAMQP uri service =
 disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn
 
-connect :: URI -> String -> IO AMQPConn
-connect uri service = do
+connect :: URI -> String -> String -> IO AMQPConn
+connect uri hostname service = do
     conn <- connection uri
     chan <- openChannel conn
 
@@ -52,7 +54,7 @@ connect uri service = do
     queues   <- H.new
     bindings <- H.new
 
-    return $ AMQPConn service conn chan queues bindings
+    return $ AMQPConn (pack hostname) (pack service) conn chan queues bindings
   where
     exchange = newExchange { exchangeName = service, exchangeType = "topic", exchangeDurable = True }
 
@@ -68,48 +70,44 @@ connection uri = do
 publish :: AMQPConn -> M.Message -> IO ()
 publish conn@AMQPConn{..} msg = do
     (exchange, _) <- declare conn msg
-    host          <- hostName
-    publishMsg amqpChan exchange (M.publishKey msg host) payload
+    publishMsg amqpChan (unpack exchange) (unpack key) payload
   where
-    payload            = newMsg { msgBody = fromChunks . body $ M.msgBody msg }
-    body (M.Payload b) = [b]
-    body (M.Error err) = [err]
+    key     = (M.publishKey msg amqpLocal)
+    payload = newMsg { msgBody = fromChunks . body $ M.msgBody msg }
 
-declare :: AMQPConn -> M.Message -> IO (String, String)
+    body (M.Payload pay) = [pay]
+    body (M.Error err)   = [err]
+
+declare :: AMQPConn -> M.Message -> IO (BS.ByteString, BS.ByteString)
 declare conn@AMQPConn{..} msg = do
     _ <- ensureQueue conn queue
     _ <- ensureBound conn queue key
     return (amqpExchange, queue)
   where
-    queue    = M.queue msg amqpExchange
-    key      = M.bindKey msg
+    queue = M.queue msg amqpExchange
+    key   = M.bindKey msg
 
-ensureQueue :: AMQPConn -> String -> IO ()
+ensureQueue :: AMQPConn -> BS.ByteString -> IO ()
 ensureQueue AMQPConn{..} queue = do
     exists <- H.lookup amqpQueues queue
     case exists of
-        Nothing -> dec >> putStrLn ("Declare Q:" ++ queue) >> ins
+        Nothing -> dec >> print inf >> ins
         Just _  -> return ()
   where
-    dec = declareQueue amqpChan newQueue { queueName = queue, queueDurable = True }
+    dec = declareQueue amqpChan newQueue { queueName = unpack queue, queueDurable = True }
     ins = H.insert amqpQueues queue True
+    inf = BS.concat ["Declare Q:", queue]
 
-ensureBound :: AMQPConn -> String -> String -> IO ()
+ensureBound :: AMQPConn -> BS.ByteString -> BS.ByteString -> IO ()
 ensureBound AMQPConn{..} queue key = do
     exists <- H.lookup amqpBindings (queue, key)
     case exists of
-        Nothing -> bind >> putStrLn inf >> ins
+        Nothing -> bind >> print inf >> ins
         Just _  -> return ()
   where
-    bind = bindQueue amqpChan queue amqpExchange key
+    bind = bindQueue amqpChan (unpack queue) (unpack amqpExchange) (unpack key)
     ins  = H.insert amqpBindings (queue, key) True
-    inf  = concat ["Binding Q:", queue, ", K:", key]
-
-hostName :: IO String
-hostName = getHostName >>= return . map f
-  where
-    f '.' = '_'
-    f c   = c
+    inf  = BS.concat ["Binding Q:", queue, ", K:", key]
 
 trim :: String -> String
 trim = f . f

@@ -18,6 +18,15 @@ import qualified Data.ByteString          as BS
 import qualified Bark.Message.Exact       as E
 import qualified Bark.Message.Incremental as I
 
+main :: IO ()
+main = do
+    opts@Options{..} <- parseOptions
+    print opts
+
+    chan <- atomically $ newTBMChan optBound
+    _    <- forkIO $ sinkStdin optBuffer chan
+    sinkMessages chan opts
+
 sinkStdin :: Int -> TBMChan BS.ByteString -> IO ()
 sinkStdin buffer chan =
     runResourceT
@@ -29,21 +38,10 @@ sinkMessages chan Options{..} =
     runResourceT
         $  sourceTBMChan chan
         $= (tee $ (con optParser) optDelimiter optStrip)
-        $$ sinkAMQP uri optService
+        $$ sinkAMQP uri optLocal optService
   where
     uri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
-
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
-
     con Exact       = E.conduitMessage
     con Incremental = I.conduitMessage
-
-main :: IO ()
-main = do
-    opts@Options{..} <- parseOptions
-    print opts
-
-    chan <- atomically $ newTBMChan optBound
-    _    <- forkIO $ sinkStdin optBuffer chan
-    sinkMessages chan opts

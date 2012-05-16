@@ -9,4 +9,7 @@ clean:
 conf: clean
 	cabal configure
 
+prof: clean
+	cabal configure --enable-executable-profiling
+
 all: conf build

@@ -9,16 +9,18 @@ module Bark.Options (
 import Control.Monad      (when)
 import Data.Maybe         (fromJust)
 import Data.Version
+import Network.BSD        (getHostName)
+import Network.URI        (URI(..), parseURI)
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
 import System.Exit        (ExitCode(..), exitWith)
-import Network.URI        (URI(..), parseURI)
 
 data Style = Exact | Incremental deriving (Data, Typeable, Show, Eq)
 
 data Options = Options
     { optDelimiter :: String
     , optService   :: String
+    , optLocal     :: String
     , optUri       :: URI
     , optBuffer    :: Int
     , optBound     :: Int
@@ -60,10 +62,19 @@ validate opts@Options{..} = do
     exitWhen (not $ optBuffer > 0) "--buffer must be greater than zero"
     exitWhen (not $ optBound > 0)  "--bound must be greater than zero"
 
-    return opts
+    host <- hostName
+    return $ if (null optLocal)
+     then opts{ optLocal = host }
+     else opts
 
 exitWhen :: Bool -> String -> IO ()
 exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)
+
+hostName :: IO String
+hostName = getHostName >>= return . map f
+  where
+    f '.' = '_'
+    f c   = c
 
 defaults :: Options
 defaults = Options
@@ -77,6 +88,12 @@ defaults = Options
         &= name "service"
         &= typ  "SERVICE"
         &= help "The application service name (required)"
+        &= explicit
+
+    , optLocal = ""
+        &= name "hostname"
+        &= typ  "HOSTNAME"
+        &= help "The local hostname (default: `hostname`)"
         &= explicit
 
     , optUri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"

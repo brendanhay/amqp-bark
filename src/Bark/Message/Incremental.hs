@@ -1,14 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Bark.Message.Incremental (
-      Message(..)
-    , conduitMessage
+      conduitMessage
     ) where
 
 import Data.Attoparsec
-import Data.Conduit.Attoparsec (ParseError(..))
-import Data.ByteString.Char8   (pack)
-import Data.Conduit hiding     (Done)
+import Data.ByteString.Char8        (pack)
+import Data.Conduit          hiding (Done)
 import Bark.Message.Types
 import Bark.Message.Parser
 

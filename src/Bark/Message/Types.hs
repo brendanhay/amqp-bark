@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, MagicHash #-}
 
 module Bark.Message.Types (
       Body(..)
@@ -10,11 +10,11 @@ module Bark.Message.Types (
     , bindKey
     ) where
 
-import Data.ByteString.Char8 (pack, unpack)
-import Data.Char             (toLower)
-import Data.List             (intercalate)
+import GHC.Base
+import Data.Char (isAsciiUpper, isAscii, isUpper)
 
-import qualified Data.ByteString  as BS
+import qualified Data.ByteString       as BS
+import qualified Data.ByteString.Char8 as C
 
 data Body = Payload BS.ByteString | Error BS.ByteString deriving (Eq, Show)
 
@@ -34,18 +34,25 @@ defaultMessage = Message
     , msgBody     = Payload BS.empty
     }
 
-queue :: Message -> String -> String
-queue Message{..} app = safe [pack app, msgCategory, msgSeverity]
+queue :: Message -> BS.ByteString -> BS.ByteString
+queue Message{..} app = normalise [app, msgCategory, msgSeverity]
 
-publishKey :: Message -> String -> String
-publishKey Message{..} prefix = safe [pack prefix, msgCategory, msgSeverity]
+publishKey :: Message -> BS.ByteString -> BS.ByteString
+publishKey Message{..} prefix = normalise [prefix, msgCategory, msgSeverity]
 
-bindKey :: Message -> String
+bindKey :: Message -> BS.ByteString
 bindKey msg = publishKey msg "*"
 
 --
 -- Internal
 --
 
-safe :: [BS.ByteString] -> String
-safe = map toLower . intercalate "." . map unpack
+normalise :: [BS.ByteString] -> BS.ByteString
+normalise = C.map unboxedToLower . BS.intercalate "."
+
+unboxedToLower :: Char -> Char
+unboxedToLower c@(C# c#)
+    | isAsciiUpper c = C# (chr# (ord# c# +# 32#))
+    | isAscii c      = c
+    | isUpper c      = unsafeChr (ord c `minusInt` ord 'A' `plusInt` ord 'a')
+    | otherwise      = c

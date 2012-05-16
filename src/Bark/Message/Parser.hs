@@ -15,9 +15,11 @@ import qualified Data.ByteString as BS
 
 severity :: Parser BS.ByteString
 severity = bracketedValue
+{-# INLINE severity #-}
 
 category :: Parser BS.ByteString
 category = bracketedValue <|> pure defaultSeverity
+{-# INLINE category #-}
 
 --
 -- Internal
@@ -26,6 +28,9 @@ category = bracketedValue <|> pure defaultSeverity
 bracket, unbracket :: Parser Word8
 bracket   = AC.char8 '['
 unbracket = AC.char8 ']'
+{-# INLINE bracket #-}
+{-# INLINE unbracket #-}
 
 bracketedValue :: Parser BS.ByteString
 bracketedValue = bracket *> AC.takeTill (== ']') <* unbracket
+{-# INLINE bracketedValue #-}
