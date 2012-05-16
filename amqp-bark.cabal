@@ -30,7 +30,7 @@ executable amqp-bark
                     -with-rtsopts=-p
 
   build-depends:    base >= 4.3 && < 5
-                  , array
+                  , hashable
                   , transformers
                   , unix
                   , split
