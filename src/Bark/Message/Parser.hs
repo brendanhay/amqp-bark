@@ -32,5 +32,5 @@ unbracket = AC.char8 ']'
 {-# INLINE unbracket #-}
 
 bracketedValue :: Parser BS.ByteString
-bracketedValue = bracket *> AC.takeTill (== ']') <* unbracket
+bracketedValue = bracket *> takeTill (== 93) <* unbracket -- 93 == ']'
 {-# INLINE bracketedValue #-}
