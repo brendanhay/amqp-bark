@@ -8,10 +8,10 @@ import Control.Concurrent (forkIO)
 import Control.Monad.STM  (atomically)
 import Data.Conduit
 import Data.Conduit.TMChan
-import Data.Maybe         (fromJust)
 import System.IO          (stdin)
 import Bark.AMQP
 import Bark.Conduit
+import Bark.Message.Types
 import Bark.Options
 
 import qualified Data.ByteString          as BS
@@ -21,27 +21,36 @@ import qualified Bark.Message.Incremental as I
 main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
+
     print opts
 
     chan <- atomically $ newTBMChan optBound
-    _    <- forkIO $ sinkStdin optBuffer chan
-    sinkMessages chan opts
+    _    <- forkIO $ sinkStdin opts chan
 
-sinkStdin :: Int -> TBMChan BS.ByteString -> IO ()
-sinkStdin buffer chan =
+    sinkMessages opts chan
+
+sinkStdin :: Options -> TBMChan BS.ByteString -> IO ()
+sinkStdin Options{..} chan =
     runResourceT
-        $  sourceHandle stdin buffer
+        $  sourceHandle stdin optBuffer
         $$ sinkTBMChan chan
 
-sinkMessages :: TBMChan BS.ByteString -> Options -> IO ()
-sinkMessages chan Options{..} =
+sinkMessages :: Options -> TBMChan BS.ByteString -> IO ()
+sinkMessages Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
-        $= (tee $ (con optParser) optDelimiter optStrip)
-        $$ sinkAMQP uri optLocal optService
+        $= (tee $ parser optDelimiter optStrip)
+        $$ sinkAMQP optUri optLocal optService
   where
-    uri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
+    parser = selectParser optParser
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
-    con Exact       = E.conduitMessage
-    con Incremental = I.conduitMessage
+
+selectParser :: Style
+             -> (MonadResource m
+             => String
+             -> Bool
+             -> Conduit BS.ByteString m Message)
+selectParser style = case style of
+    Exact       -> E.conduitMessage
+    Incremental -> I.conduitMessage

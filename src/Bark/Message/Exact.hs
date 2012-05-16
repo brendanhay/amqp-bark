@@ -81,7 +81,7 @@ breakByte :: Word8
           -> BS.ByteString
           -> ([BS.ByteString], BS.ByteString)
 breakByte d strip bstr@(PS x s l) | l == 0    = ([], bstr)
-                                 | otherwise = formatResult $ search 0
+                                  | otherwise = formatResult $ search 0
     where
         search a | a `seq` False = undefined
         search n =

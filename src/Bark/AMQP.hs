@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Bark.AMQP (
-      URI
-    , sinkAMQP
-    , parseURI
+      sinkAMQP
     ) where
 
 import Control.Monad.IO.Class     (MonadIO, liftIO)
@@ -14,7 +12,7 @@ import Data.Hashable
 import Data.Maybe                 (fromMaybe)
 import Data.List.Split            (splitOn)
 import Network.AMQP
-import Network.URI                (URI(..), URIAuth(..), parseURI)
+import Network.URI                (URI(..), URIAuth(..))
 
 import qualified Data.ByteString    as BS
 import qualified Data.HashTable.IO  as H

@@ -97,7 +97,7 @@ defaults = Options
         &= explicit
 
     , optUri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
-        &= name "amqp-uri"
+        &= name "uri"
         &= typ  "URI"
         &= help "The amqp uri (default: guest@localhost)"
         &= explicit

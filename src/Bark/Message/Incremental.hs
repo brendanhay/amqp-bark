@@ -37,13 +37,15 @@ conduitParser p0 = conduitState newParser push close
                     return $ StateProducing newParser xs
                 | otherwise ->
                     return $ StateProducing (newParser . BS.append leftover) xs
-            Fail _ contexts msg -> return $ StateProducing newParser []
-            Partial p -> return $ StateProducing p []
+            Fail _ _contexts _ ->
+                return $ StateProducing newParser []
+            Partial p ->
+                return $ StateProducing p []
     close parser' =
         case parser' BS.empty of
-            Done _leftover xs   -> return xs
-            Fail _ contexts msg -> return []
-            Partial _           -> return []
+            Done _leftover xs  -> return xs
+            Fail _ _contexts _ -> return []
+            Partial _          -> return []
 
 parser :: String -> Parser Message
 parser delim = do
