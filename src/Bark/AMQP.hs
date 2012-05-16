@@ -57,14 +57,11 @@ disconnect = closeConnection . amqpConn
 
 connect :: URI -> String -> String -> IO AMQPConn
 connect uri hostname service = do
-    conn <- connection uri
-    chan <- openChannel conn
-
+    conn  <- connection uri
+    chan  <- openChannel conn
+    cache <- H.new
     declareExchange chan exchange
-
-    bindings <- H.new
-
-    return $ AMQPConn hostname service conn chan bindings
+    return $ AMQPConn hostname service conn chan cache
   where
     exchange = newExchange { exchangeName = service, exchangeType = "topic", exchangeDurable = True }
 
