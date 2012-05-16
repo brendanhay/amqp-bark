@@ -14,7 +14,7 @@ import Bark.Conduit
 import Bark.Message.Types
 import Bark.Options
 
-import qualified Data.ByteString          as BS
+import qualified Data.ByteString          as B
 import qualified Bark.Message.Exact       as E
 import qualified Bark.Message.Incremental as I
 
@@ -29,13 +29,13 @@ main = do
 
     sinkMessages opts chan
 
-sinkStdin :: Options -> TBMChan BS.ByteString -> IO ()
+sinkStdin :: Options -> TBMChan B.ByteString -> IO ()
 sinkStdin Options{..} chan =
     runResourceT
         $  sourceHandle stdin optBuffer
         $$ sinkTBMChan chan
 
-sinkMessages :: Options -> TBMChan BS.ByteString -> IO ()
+sinkMessages :: Options -> TBMChan B.ByteString -> IO ()
 sinkMessages Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
@@ -50,7 +50,7 @@ selectParser :: Style
              -> (MonadResource m
              => String
              -> Bool
-             -> Conduit BS.ByteString m Message)
+             -> Conduit B.ByteString m Message)
 selectParser style = case style of
     Exact       -> E.conduitMessage
     Incremental -> I.conduitMessage

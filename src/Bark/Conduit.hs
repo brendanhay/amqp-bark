@@ -8,31 +8,31 @@ import Control.Monad.IO.Class   (liftIO)
 import Data.Conduit
 import System.IO                (Handle, stdout)
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString as B
 
 sourceHandle :: MonadResource m
              => Handle
              -> Int
-             -> Source m BS.ByteString
+             -> Source m B.ByteString
 sourceHandle handle buffer =
     source
   where
     source = PipeM pull close
     pull = do
-        bstr <- liftIO (BS.hGetSome handle buffer)
-        if BS.null bstr
+        bstr <- liftIO (B.hGetSome handle buffer)
+        if B.null bstr
             then return $ Done Nothing ()
             else return $ HaveOutput source close bstr
     close = return ()
 
 conduitHandle :: MonadResource m
               => Handle
-              -> Conduit BS.ByteString m BS.ByteString
+              -> Conduit B.ByteString m B.ByteString
 conduitHandle handle =
     conduitIO (return handle) (\_ -> return ()) push (const $ return [])
   where
     push h input = do
-        liftIO $ BS.hPut h input
+        liftIO $ B.hPut h input
         return $ IOProducing [input]
 
 conduitShow :: (Show a, MonadResource m) => Conduit a m a

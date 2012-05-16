@@ -13,42 +13,42 @@ module Bark.Message.Types (
 import GHC.Base
 import Data.Char (isAsciiUpper, isAscii, isUpper)
 
-import qualified Data.ByteString       as BS
+import qualified Data.ByteString       as B
 import qualified Data.ByteString.Char8 as C
 
-data Body = Payload BS.ByteString | Error BS.ByteString deriving (Eq, Show)
+data Body = Payload B.ByteString | Error B.ByteString deriving (Eq, Show)
 
 data Message = Message
-    { msgCategory :: !BS.ByteString
-    , msgSeverity :: !BS.ByteString
+    { msgCategory :: !B.ByteString
+    , msgSeverity :: !B.ByteString
     , msgBody     :: !Body
     } deriving (Eq, Show)
 
-defaultSeverity :: BS.ByteString
+defaultSeverity :: B.ByteString
 defaultSeverity = "INFO"
 
 defaultMessage :: Message
 defaultMessage = Message
-    { msgCategory = BS.empty
+    { msgCategory = B.empty
     , msgSeverity = defaultSeverity
-    , msgBody     = Payload BS.empty
+    , msgBody     = Payload B.empty
     }
 
-queue :: Message -> BS.ByteString -> BS.ByteString
+queue :: Message -> B.ByteString -> B.ByteString
 queue Message{..} app = normalise [app, msgCategory, msgSeverity]
 
-publishKey :: Message -> BS.ByteString -> BS.ByteString
+publishKey :: Message -> B.ByteString -> B.ByteString
 publishKey Message{..} prefix = normalise [prefix, msgCategory, msgSeverity]
 
-bindKey :: Message -> BS.ByteString
+bindKey :: Message -> B.ByteString
 bindKey msg = publishKey msg "*"
 
 --
 -- Internal
 --
 
-normalise :: [BS.ByteString] -> BS.ByteString
-normalise = C.map unboxedToLower . BS.intercalate "."
+normalise :: [B.ByteString] -> B.ByteString
+normalise = C.map unboxedToLower . B.intercalate "."
 
 unboxedToLower :: Char -> Char
 unboxedToLower c@(C# c#)

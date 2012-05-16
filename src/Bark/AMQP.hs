@@ -14,13 +14,13 @@ import Data.List.Split            (splitOn)
 import Network.AMQP
 import Network.URI                (URI(..), URIAuth(..))
 
-import qualified Data.ByteString    as BS
+import qualified Data.ByteString    as B
 import qualified Data.HashTable.IO  as H
 import qualified Bark.Message.Types as M
 
 type HashTable k v = H.BasicHashTable k v
 
-data BindingKey = BindingKey BS.ByteString BS.ByteString deriving (Eq)
+data BindingKey = BindingKey B.ByteString B.ByteString deriving (Eq)
 
 instance Hashable BindingKey where
     hash (BindingKey c s) = hash [c, s]

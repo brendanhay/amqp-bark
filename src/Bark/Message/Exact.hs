@@ -16,12 +16,12 @@ import Foreign.Ptr              (nullPtr, plusPtr, minusPtr)
 import Bark.Message.Types
 import Bark.Message.Parser
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString as B
 
 conduitMessage :: MonadResource m
                => String
                -> Bool
-               -> Conduit BS.ByteString m Message
+               -> Conduit B.ByteString m Message
 conduitMessage delim strip =
     conduitSplit (fromString delim) strip =$= conduit
   where
@@ -38,7 +38,7 @@ conduitMessage delim strip =
 data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
 
 class Delimiter a where
-    split :: a -> Bool -> BS.ByteString -> ([BS.ByteString], BS.ByteString)
+    split :: a -> Bool -> B.ByteString -> ([B.ByteString], B.ByteString)
 
 instance Delimiter AnyDelimiter where
     split (AnyDelimiter d) = split d
@@ -46,7 +46,7 @@ instance Delimiter AnyDelimiter where
 instance Delimiter Word8 where
     split = breakByte
 
-instance Delimiter BS.ByteString where
+instance Delimiter B.ByteString where
     split = breakString
 
 fromString :: String -> AnyDelimiter
@@ -63,23 +63,23 @@ parser = do
 conduitSplit :: (Delimiter d, Monad m)
              => d
              -> Bool
-             -> Conduit BS.ByteString m BS.ByteString
+             -> Conduit B.ByteString m B.ByteString
 conduitSplit delim strip =
-    conduitState BS.empty push close
+    conduitState B.empty push close
   where
     push state input = return $ StateProducing state' res
       where
         (state', res) | null matches = (buffer, [])
                       | otherwise    = (rest, matches)
           where
-            buffer          = BS.append state input
+            buffer          = B.append state input
             (matches, rest) = split delim strip buffer
     close state = return [state]
 
 breakByte :: Word8
           -> Bool
-          -> BS.ByteString
-          -> ([BS.ByteString], BS.ByteString)
+          -> B.ByteString
+          -> ([B.ByteString], B.ByteString)
 breakByte d strip bstr@(PS x s l) | l == 0    = ([], bstr)
                                   | otherwise = formatResult $ search 0
     where
@@ -97,30 +97,30 @@ breakByte d strip bstr@(PS x s l) | l == 0    = ([], bstr)
                             where
                              plen = if strip then 0 else 1
 
-breakString :: BS.ByteString
+breakString :: B.ByteString
             -> Bool
-            -> BS.ByteString
-            -> ([BS.ByteString], BS.ByteString)
-breakString d strip bstr | BS.null d = ([], bstr)
+            -> B.ByteString
+            -> ([B.ByteString], B.ByteString)
+breakString d strip bstr | B.null d = ([], bstr)
                         | otherwise = formatResult $ search 0 bstr 0
   where
     search a b c | a `seq` b `seq` c `seq` False = undefined
-    search n s p | BS.null s           = [unsafeDrop p bstr]
-                 | d `BS.isPrefixOf` s = cons $ search plen (unsafeDrop dlen s) plen
+    search n s p | B.null s           = [unsafeDrop p bstr]
+                 | d `B.isPrefixOf` s = cons $ search plen (unsafeDrop dlen s) plen
                  | otherwise           = search (n + 1) (unsafeTail s) p
       where
-        dlen  = BS.length d -- Delimiter length
+        dlen  = B.length d -- Delimiter length
         plen  = n + dlen    -- Distance to move the search ptr
         slen  = (if strip then n else plen) - p -- Slice length relative to previous slice
 
         slice = unsafeTake slen $ unsafeDrop p bstr
 
         cons | slen == dlen  = id -- Lonely delimiter
-             | BS.null slice = id -- Empty slice
+             | B.null slice = id -- Empty slice
              | otherwise     = (slice :)
 
-formatResult :: [BS.ByteString] -> ([BS.ByteString], BS.ByteString)
+formatResult :: [B.ByteString] -> ([B.ByteString], B.ByteString)
 formatResult l = case l of
-    []  -> ([], BS.empty)
+    []  -> ([], B.empty)
     [x] -> ([], x)
     _   -> (init l, last l)

@@ -11,14 +11,14 @@ import GHC.Word (Word8)
 import Bark.Message.Types
 
 import qualified Data.Attoparsec.Char8 as AC
-import qualified Data.ByteString as BS
+import qualified Data.ByteString as B
 
-severity :: Parser BS.ByteString
+severity :: Parser B.ByteString
 severity = bracketedValue
 {-# INLINE severity #-}
 
 
-category :: Parser BS.ByteString
+category :: Parser B.ByteString
 category = bracketedValue <|> pure defaultSeverity
 {-# INLINE category #-}
 
@@ -32,6 +32,6 @@ unbracket = AC.char8 ']'
 {-# INLINE bracket #-}
 {-# INLINE unbracket #-}
 
-bracketedValue :: Parser BS.ByteString
+bracketedValue :: Parser B.ByteString
 bracketedValue = bracket *> takeTill (== 93) <* unbracket -- 93 == ']'
 {-# INLINE bracketedValue #-}
