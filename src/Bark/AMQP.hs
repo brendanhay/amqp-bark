@@ -60,10 +60,10 @@ connect uri hostname service = do
     conn  <- connection uri
     chan  <- openChannel conn
     cache <- H.new
-    declareExchange chan exchange
+    _     <- declareExchange chan opts
     return $ AMQPConn hostname service conn chan cache
   where
-    exchange = newExchange { exchangeName = service, exchangeType = "topic", exchangeDurable = True }
+    opts = newExchange { exchangeName = service, exchangeType = "topic", exchangeDurable = True }
 
 connection :: URI -> IO Connection
 connection uri = do
