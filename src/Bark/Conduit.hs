@@ -1,5 +1,5 @@
-module Bark.Conduit (
-      sourceHandle
+module Bark.Conduit
+    ( sourceHandle
     , conduitHandle
     , conduitShow
     ) where

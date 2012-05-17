@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
-module Main (
-      main
+module Main
+    ( main
     ) where
 
 import Control.Concurrent (forkIO)

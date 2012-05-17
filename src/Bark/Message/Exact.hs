@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, ExistentialQuantification #-}
 
-module Bark.Message.Exact (
-      conduitMessage
+module Bark.Message.Exact
+    ( conduitMessage
     ) where
 
 import Data.Attoparsec

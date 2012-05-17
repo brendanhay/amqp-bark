@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
-module Bark.AMQP (
-      sinkAMQP
+module Bark.AMQP
+    ( sinkAMQP
     ) where
 
 import Control.Monad.IO.Class     (MonadIO, liftIO)

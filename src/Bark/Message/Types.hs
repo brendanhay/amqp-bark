@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, MagicHash #-}
 
-module Bark.Message.Types (
-      Body(..)
+module Bark.Message.Types
+    ( Body(..)
     , Message(..)
     , defaultSeverity
     , defaultMessage

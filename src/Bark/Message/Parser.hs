@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Message.Parser (
-      severity
+module Bark.Message.Parser
+    ( severity
     , category
     ) where
 
@@ -10,8 +10,8 @@ import Data.Attoparsec
 import GHC.Word (Word8)
 import Bark.Message.Types
 
-import qualified Data.Attoparsec.Char8 as AC
-import qualified Data.ByteString as B
+import qualified Data.Attoparsec.Char8 as A
+import qualified Data.ByteString       as B
 
 severity :: Parser B.ByteString
 severity = bracketedValue
@@ -27,8 +27,8 @@ category = bracketedValue <|> pure defaultSeverity
 --
 
 bracket, unbracket :: Parser Word8
-bracket   = AC.char8 '['
-unbracket = AC.char8 ']'
+bracket   = A.char8 '['
+unbracket = A.char8 ']'
 {-# INLINE bracket #-}
 {-# INLINE unbracket #-}
 

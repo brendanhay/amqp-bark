@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
 
-module Bark.Options (
-      Style(..)
+module Bark.Options
+    ( Style(..)
     , Options(..)
     , parseOptions
     ) where

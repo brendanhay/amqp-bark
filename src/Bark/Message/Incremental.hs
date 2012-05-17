@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Message.Incremental (
-      conduitMessage
+module Bark.Message.Incremental
+    ( conduitMessage
     ) where
 
 import Data.Attoparsec
