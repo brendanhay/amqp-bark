@@ -47,7 +47,7 @@ sinkAMQP uri hostname service =
     sinkIO (connect uri hostname service) disconnect push close
   where
     push conn msg = liftIO $ publish conn msg >> return IOProcessing
-    close conn    = liftIO $ void $ disconnect conn
+    close conn    = liftIO . void $ disconnect conn
 
 --
 -- Internal
