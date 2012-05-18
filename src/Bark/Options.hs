@@ -7,10 +7,8 @@ module Bark.Options
     ) where
 
 import Control.Monad      (when)
-import Data.Maybe         (fromJust)
 import Data.Version
 import Network.BSD        (getHostName)
-import Network.URI        (URI(..), parseURI)
 import System.Console.CmdArgs
 import System.Environment (getArgs, withArgs)
 import System.Exit        (ExitCode(..), exitWith)
@@ -21,7 +19,7 @@ data Options = Options
     { optDelimiter :: String
     , optService   :: String
     , optLocal     :: String
-    , optUri       :: URI
+    , optUri       :: String
     , optBuffer    :: Int
     , optBound     :: Int
     , optParser    :: Style
@@ -64,8 +62,8 @@ validate opts@Options{..} = do
 
     host <- hostName
     return $ if (null optLocal)
-     then opts{ optLocal = host }
-     else opts
+              then opts{ optLocal = host }
+              else opts
 
 exitWhen :: Bool -> String -> IO ()
 exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)
@@ -96,7 +94,7 @@ defaults = Options
         &= help "The local hostname (default: `hostname`)"
         &= explicit
 
-    , optUri = fromJust $ parseURI "amqp://guest:guest@127.0.0.1/"
+    , optUri = "amqp://guest:guest@127.0.0.1/"
         &= name "uri"
         &= typ  "URI"
         &= help "The amqp uri (default: guest@localhost)"

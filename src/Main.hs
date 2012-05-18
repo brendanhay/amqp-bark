@@ -8,6 +8,8 @@ import Control.Concurrent (forkIO)
 import Control.Monad.STM  (atomically)
 import Data.Conduit
 import Data.Conduit.TMChan
+import Data.Maybe         (fromJust)
+import Network.URI        (parseURI)
 import System.IO          (stdin)
 import Bark.AMQP
 import Bark.Conduit
@@ -40,8 +42,9 @@ sinkMessages Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
         $= (tee $ parser optDelimiter optStrip)
-        $$ sinkAMQP optUri optLocal optService
+        $$ sinkAMQP uri optLocal optService
   where
+    uri    = fromJust $ parseURI optUri
     parser = selectParser optParser
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
