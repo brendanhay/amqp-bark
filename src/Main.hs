@@ -23,12 +23,9 @@ import qualified Bark.Message.Incremental as I
 main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
-
     print opts
-
     chan <- atomically $ newTBMChan optBound
     _    <- forkIO $ sinkStdin opts chan
-
     sinkMessages opts chan
 
 sinkStdin :: Options -> TBMChan B.ByteString -> IO ()
