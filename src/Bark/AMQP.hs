@@ -4,6 +4,7 @@ module Bark.AMQP
     ( sinkAMQP
     ) where
 
+import Control.Monad              (void)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
 import Data.ByteString.Char8      (pack, unpack)
 import Data.ByteString.Lazy.Char8 (fromChunks)
@@ -46,7 +47,7 @@ sinkAMQP uri hostname service =
     sinkIO (connect uri hostname service) disconnect push close
   where
     push conn msg = liftIO $ publish conn msg >> return IOProcessing
-    close conn    = liftIO $ disconnect conn >> return ()
+    close conn    = liftIO $ void $ disconnect conn
 
 --
 -- Internal
@@ -66,7 +67,7 @@ connect uri hostname service = do
     opts = newExchange { exchangeName = service, exchangeType = "topic", exchangeDurable = True }
 
 connection :: URI -> IO Connection
-connection uri = do
+connection uri =
     openConnection host vhost user pwd
   where
     auth = URIAuth "guest:guest" "127.0.0.1" ""

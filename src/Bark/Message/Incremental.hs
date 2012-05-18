@@ -30,7 +30,7 @@ conduitParser p0 = conduitState newParser push close
     newParser = parse (many1 p0)
     push _ c
        | B.null c = return $ StateFinished Nothing []
-    push parser' c = do
+    push parser' c =
         case feed (parser' c) B.empty of
             Done leftover xs
                 | B.null leftover ->

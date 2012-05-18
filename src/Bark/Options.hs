@@ -6,12 +6,13 @@ module Bark.Options
     , parseOptions
     ) where
 
-import Control.Monad      (when)
+import Control.Applicative ((<$>))
+import Control.Monad       (when)
 import Data.Version
-import Network.BSD        (getHostName)
+import Network.BSD         (getHostName)
 import System.Console.CmdArgs
-import System.Environment (getArgs, withArgs)
-import System.Exit        (ExitCode(..), exitWith)
+import System.Environment  (getArgs, withArgs)
+import System.Exit         (ExitCode(..), exitWith)
 
 data Style = Exact | Incremental deriving (Data, Typeable, Show, Eq)
 
@@ -55,13 +56,13 @@ version = Version
 
 validate :: Options -> IO Options
 validate opts@Options{..} = do
-    exitWhen (null optDelimiter)   "--delimiter cannot be blank"
-    exitWhen (null optService)     "--service cannot be blank"
-    exitWhen (not $ optBuffer > 0) "--buffer must be greater than zero"
-    exitWhen (not $ optBound > 0)  "--bound must be greater than zero"
+    exitWhen (null optDelimiter) "--delimiter cannot be blank"
+    exitWhen (null optService)   "--service cannot be blank"
+    exitWhen (optBuffer <= 0)    "--buffer must be greater than zero"
+    exitWhen (optBound <= 0)     "--bound must be greater than zero"
 
     host <- hostName
-    return $ if (null optLocal)
+    return $ if null optLocal
               then opts{ optLocal = host }
               else opts
 
@@ -69,7 +70,7 @@ exitWhen :: Bool -> String -> IO ()
 exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
 hostName :: IO String
-hostName = getHostName >>= return . map f
+hostName = map f <$> getHostName
   where
     f '.' = '_'
     f c   = c

@@ -41,7 +41,7 @@ sinkMessages :: Options -> TBMChan B.ByteString -> IO ()
 sinkMessages Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
-        $= (tee $ parser optDelimiter optStrip)
+        $= tee (parser optDelimiter optStrip)
         $$ sinkAMQP uri optLocal optService
   where
     uri    = fromJust $ parseURI optUri

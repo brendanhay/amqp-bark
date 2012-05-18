@@ -50,8 +50,8 @@ instance Delimiter B.ByteString where
     split = breakString
 
 fromString :: String -> AnyDelimiter
-fromString str | (length str) > 1 = AnyDelimiter $ pack str
-               | otherwise        = AnyDelimiter . c2w $ head str
+fromString str | length str > 1 = AnyDelimiter $ pack str
+               | otherwise      = AnyDelimiter . c2w $ head str
 
 parser :: Parser Message
 parser = do
