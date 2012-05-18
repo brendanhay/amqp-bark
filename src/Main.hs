@@ -28,6 +28,10 @@ main = do
     _    <- forkIO $ sinkStdin opts chan
     sinkMessages opts chan
 
+--
+-- Internal
+--
+
 sinkStdin :: Options -> TBMChan B.ByteString -> IO ()
 sinkStdin Options{..} chan =
     runResourceT

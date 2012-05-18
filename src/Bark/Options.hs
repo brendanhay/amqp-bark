@@ -34,6 +34,10 @@ parseOptions = do
     opts <- (if null argz then withArgs ["--help"] else id) options
     validate opts
 
+--
+-- Internal
+--
+
 options :: IO Options
 options = cmdArgs $ defaults
     &= versionArg [explicit, name "version", name "v", vers]

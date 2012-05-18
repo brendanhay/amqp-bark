@@ -19,6 +19,17 @@ import qualified Data.ByteString    as B
 import qualified Data.HashTable.IO  as H
 import qualified Bark.Message.Types as M
 
+sinkAMQP :: MonadResource m => URI -> String -> String -> Sink M.Message m ()
+sinkAMQP uri hostname service =
+    sinkIO (connect uri hostname service) disconnect push close
+  where
+    push conn msg = liftIO $ publish conn msg >> return IOProcessing
+    close conn    = liftIO . void $ disconnect conn
+
+--
+-- Internal
+--
+
 type HashTable k v = H.BasicHashTable k v
 
 data BindingKey = BindingKey B.ByteString B.ByteString deriving (Eq)
@@ -32,7 +43,7 @@ data Binding = Binding
     , boundKey      :: String
     }
 
-type BindingCache = HashTable BindingKey Binding
+type BindingCache = HashTable BindingKey Bindin
 
 data AMQPConn = AMQPConn
     { amqpLocal    :: String
@@ -41,17 +52,6 @@ data AMQPConn = AMQPConn
     , amqpChan     :: Channel
     , amqpBindings :: BindingCache
     }
-
-sinkAMQP :: MonadResource m => URI -> String -> String -> Sink M.Message m ()
-sinkAMQP uri hostname service =
-    sinkIO (connect uri hostname service) disconnect push close
-  where
-    push conn msg = liftIO $ publish conn msg >> return IOProcessing
-    close conn    = liftIO . void $ disconnect conn
-
---
--- Internal
---
 
 disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn
