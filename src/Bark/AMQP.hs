@@ -93,7 +93,7 @@ bind AMQPConn{..} msg idx = do
     _ <- declareQueue amqpChan newQueue { queueName = queue, queueDurable = True }
     _ <- bindQueue amqpChan queue amqpExchange key
     H.insert amqpBindings idx res
-    return $! res
+    return res
   where
     queue = unpack $ M.queue msg $ pack amqpExchange
     key   = unpack $ M.bindKey msg
