@@ -43,7 +43,7 @@ data Binding = Binding
     , boundKey      :: String
     }
 
-type BindingCache = HashTable BindingKey Bindin
+type BindingCache = HashTable BindingKey Binding
 
 data AMQPConn = AMQPConn
     { amqpLocal    :: String

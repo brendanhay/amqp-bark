@@ -13,7 +13,6 @@ import Network.URI        (parseURI)
 import System.IO          (stdin)
 import Bark.AMQP
 import Bark.Conduit
-import Bark.Message.Types
 import Bark.Options
 
 import qualified Data.ByteString          as B
