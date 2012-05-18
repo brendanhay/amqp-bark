@@ -41,16 +41,9 @@ sinkMessages Options{..} chan =
         $= tee (parser optDelimiter optStrip)
         $$ sinkAMQP uri optLocal optService
   where
-    uri    = fromJust $ parseURI optUri
-    parser = selectParser optParser
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
-
-selectParser :: Style
-             -> (MonadResource m
-             => String
-             -> Bool
-             -> Conduit B.ByteString m Message)
-selectParser style = case style of
-    Exact       -> E.conduitMessage
-    Incremental -> I.conduitMessage
+    parser = case optParser of
+        Exact       -> E.conduitMessage
+        Incremental -> I.conduitMessage
+    uri = fromJust $ parseURI optUri
