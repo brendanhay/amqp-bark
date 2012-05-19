@@ -10,8 +10,8 @@ module Bark.Message.Types
     , bindKey
     ) where
 
-import GHC.Base
 import Data.Char (isAsciiUpper, isAscii, isUpper)
+import GHC.Base
 
 import qualified Data.ByteString       as B
 import qualified Data.ByteString.Char8 as C

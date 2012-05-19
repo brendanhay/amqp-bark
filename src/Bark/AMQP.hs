@@ -33,7 +33,11 @@ conduitAMQP uri hostname service =
         return $ IOProducing [msg]
     close conn    = liftIO $ disconnect conn >> return []
 
-sinkAMQP :: MonadResource m => URI -> String -> String -> Sink M.Message m ()
+sinkAMQP :: MonadResource m
+         => URI
+         -> String
+         -> String
+         -> Sink M.Message m ()
 sinkAMQP uri hostname service =
     sinkIO (connect uri hostname service) disconnect push close
   where
@@ -72,7 +76,7 @@ disconnect = closeConnection . amqpConn
 
 connect :: URI -> String -> String -> IO AMQPConn
 connect uri hostname service = do
-    conn  <- connection uri
+    conn  <- mkConnection uri
     chan  <- openChannel conn
     cache <- H.new
     _     <- declareExchange chan opts
@@ -80,8 +84,8 @@ connect uri hostname service = do
   where
     opts = newExchange { exchangeName = service, exchangeType = "topic", exchangeDurable = True }
 
-connection :: URI -> IO Connection
-connection uri =
+mkConnection :: URI -> IO Connection
+mkConnection uri =
     openConnection host vhost user pwd
   where
     auth = URIAuth "guest:guest" "127.0.0.1" ""
