@@ -11,7 +11,7 @@ import Control.Monad       (when)
 import Data.Version
 import Network.BSD         (getHostName)
 import System.Console.CmdArgs
-import System.Environment  (getArgs, withArgs)
+import System.Environment  (getArgs, withArgs, getProgName)
 import System.Exit         (ExitCode(..), exitWith)
 
 data Style = Exact | Incremental deriving (Data, Typeable, Show, Eq)
@@ -30,8 +30,8 @@ data Options = Options
 
 parseOptions :: IO Options
 parseOptions = do
-    argz <- getArgs
-    opts <- (if null argz then withArgs ["--help"] else id) options
+    args' <- getArgs
+    opts  <- (if null args' then withArgs ["--help"] else id) options
     validate opts
 
 --
@@ -39,18 +39,14 @@ parseOptions = do
 --
 
 options :: IO Options
-options = cmdArgs $ defaults
-    &= versionArg [explicit, name "version", name "v", vers]
-    &= summary blank
-    &= helpArg [explicit, name "help", name "h"]
-    &= program usage
-  where
-    blank = ""
-    usage = "Usage: " ++ application
-    vers  = summary $ concat [application, ": ", showVersion version]
-
-application :: String
-application = "amqp-bark"
+options = do
+    app <- getProgName
+    let ver = summary $ concat [app, ": ", showVersion version]
+    cmdArgs $ defaults
+        &= versionArg [explicit, name "version", name "v", ver]
+        &= summary ""
+        &= helpArg [explicit, name "help", name "h"]
+        &= program ("Usage: " ++ app)
 
 version :: Version
 version = Version

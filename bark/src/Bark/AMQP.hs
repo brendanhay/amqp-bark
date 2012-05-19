@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Bark.AMQP
-    ( sinkAMQP
+    ( conduitAMQP
+    , sinkAMQP
     ) where
 
 import Control.Monad              (void)
@@ -19,11 +20,24 @@ import qualified Data.ByteString    as B
 import qualified Data.HashTable.IO  as H
 import qualified Bark.Message.Types as M
 
+conduitAMQP :: MonadResource m
+            => URI
+            -> String
+            -> String
+            -> Conduit M.Message m M.Message
+conduitAMQP uri hostname service =
+    conduitIO (connect uri hostname service) disconnect push close
+  where
+    push conn msg = do
+        liftIO $ publish conn msg
+        return $ IOProducing [msg]
+    close conn    = liftIO $ disconnect conn >> return []
+
 sinkAMQP :: MonadResource m => URI -> String -> String -> Sink M.Message m ()
 sinkAMQP uri hostname service =
     sinkIO (connect uri hostname service) disconnect push close
   where
-    push conn msg = liftIO $ publish conn msg >> return IOProcessing
+    push conn msg = liftIO (publish conn msg >> return IOProcessing)
     close conn    = liftIO . void $ disconnect conn
 
 --

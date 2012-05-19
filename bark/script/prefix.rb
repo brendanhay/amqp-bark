@@ -26,16 +26,14 @@ def prefix
   end
 end
 
-input = ARGV.shift
-n = 0
+input  = ARGV.shift
+output = File.expand_path(File.dirname(__FILE__)) + "/prefix.log"
+lines  = 0
 
-File.open("prefix.log", "w") do |outp|
-  while n < 450000
+File.open(output, "w") do |outp|
+  while lines < 450000
     File.open(input, "r") do |inp|
-      inp.each_line do |line|
-        outp.puts prefix + line
-        n += 1
-      end
+      inp.each_line { |line| outp.puts prefix + line; lines += 1 }
     end
   end
 end

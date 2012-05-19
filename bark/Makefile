@@ -14,6 +14,6 @@ conf: clean
 prof: clean
 	cabal configure --enable-executable-profiling
 	$(MAKE) build
-	cat prefix.log | ./bark --service=profiler
+	cat ./script/prefix.log | ./dist/build/bark/bark --service=prof
 
 
