@@ -4,11 +4,11 @@ module Main
     ( main
     ) where
 
-import Control.Concurrent (forkIO)
-import Control.Monad.STM  (atomically)
+import Control.Concurrent  (forkIO)
+import Control.Monad.STM   (atomically)
 import Data.Conduit
 import Data.Conduit.TMChan
-import System.IO          (stdin)
+import System.IO           (stdin)
 import Bark.AMQP
 import Bark.Conduit
 import Bark.Options
@@ -41,12 +41,10 @@ sinkEvents Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
         $= tee (parser optDelimiter optStrip)
-        $$ sinkAMQP (parseURI optUri) host serv
+        $$ sinkAMQP (parseURI optUri) (B.pack optHost) (B.pack optService)
   where
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
     parser = case optParser of
         Exact       -> E.conduitEvent
         Incremental -> I.conduitEvent
-    host = Host $ B.pack optHost
-    serv = Service $ B.pack optService

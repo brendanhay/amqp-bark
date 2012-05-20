@@ -1,19 +1,17 @@
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings, MagicHash,
-    RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, MagicHash, RecordWildCards #-}
 
 module Bark.Types (
+    -- * Exported Aliases
+      Host
+    , Service
+    , Category
+    , Severity
+
     -- * Exported Types
-      Host(..)
-    , Service(..)
-    , Category(..)
-    , Severity(..)
     , Binding(..)
     , Body(..)
     , Event(..)
     , URI(..)
-
-    -- * Strings
-    , ToString(..)
 
     -- * Defaults
     , defaultSeverity
@@ -21,7 +19,6 @@ module Bark.Types (
     -- * Constructors
     , mkBinding
     , fromEvent
-    , mkEvent
     , parseURI
 
     -- * Routing
@@ -30,23 +27,17 @@ module Bark.Types (
     ) where
 
 import Data.Char       (isAsciiUpper, isAscii, isUpper)
-import Data.Data (Data, Typeable)
 import Data.List.Split (splitOn)
 import Data.Maybe      (fromJust, fromMaybe)
-import Data.String     (IsString(..))
 import GHC.Base
 
-import qualified Data.ByteString       as B
-import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString.Char8 as B
 import qualified Network.URI           as U
 
-newtype Host = Host B.ByteString deriving (Data, Typeable, Show, Eq)
-
-newtype Service = Service B.ByteString deriving (Data, Typeable, Show, Eq)
-
-newtype Category = Category B.ByteString deriving (Data, Typeable, Show, Eq)
-
-newtype Severity = Severity B.ByteString deriving (Data, Typeable, Show, Eq)
+type Host     = B.ByteString
+type Service  = B.ByteString
+type Category = B.ByteString
+type Severity = B.ByteString
 
 data Binding = Binding
     { bndExchange :: String
@@ -71,28 +62,6 @@ data URI = URI
     } deriving (Show, Eq)
 
 --
--- Strings
---
-
-class ToString a where
-    toString :: a -> String
-
-instance ToString Service where
-    toString (Service serv) = C.unpack serv
-
-instance IsString Host where
-    fromString s = Host $ C.pack s
-
-instance IsString Service where
-    fromString s = Service $ C.pack s
-
-instance IsString Category where
-    fromString s = Category $ C.pack s
-
-instance IsString Severity where
-    fromString s = Severity $ C.pack s
-
---
 -- Defaults
 --
 
@@ -108,19 +77,16 @@ mkBinding :: Host
           -> Category
           -> Severity
           -> Binding
-mkBinding host (Service serv) cat sev =
+mkBinding host serv cat sev =
     Binding exchange queue publish declare
   where
-    exchange = C.unpack serv
+    exchange = B.unpack serv
     queue    = name serv cat sev
     publish  = publishKey host cat sev
     declare  = declareKey cat sev
 
 fromEvent :: Event -> Host -> Service -> Binding
 fromEvent Event{..} host serv = mkBinding host serv evtCategory evtSeverity
-
-mkEvent :: B.ByteString -> B.ByteString -> Body -> Event
-mkEvent cat sev = Event (Category cat) (Severity sev)
 
 parseURI :: String -> URI
 parseURI = conv . fromJust . U.parseURI
@@ -130,7 +96,7 @@ parseURI = conv . fromJust . U.parseURI
 --
 
 publishKey :: Host -> Category -> Severity -> String
-publishKey (Host h) = name h
+publishKey = name
 
 declareKey :: Category -> Severity -> String
 declareKey = name B.empty
@@ -140,11 +106,10 @@ declareKey = name B.empty
 --
 
 name :: B.ByteString -> Category -> Severity -> String
-name prefix (Category cat) (Severity sev) =
-    C.unpack $ normalise [prefix, cat, sev]
+name prefix cat sev = B.unpack $ normalise [prefix, cat, sev]
 
 normalise :: [B.ByteString] -> B.ByteString
-normalise = C.map lowercase . B.intercalate "." . map wildcard
+normalise = B.map lowercase . B.intercalate "." . map wildcard
   where
     wildcard bstr | B.null bstr = "*"
                   | otherwise   = bstr
@@ -157,7 +122,7 @@ lowercase c@(C# c#)
     | otherwise      = c
 
 conv :: U.URI -> URI
-conv uri = URI host vhost user pass
+conv uri = URI user pass host vhost
   where
     auth = U.URIAuth "guest:guest" "127.0.0.1" ""
     (U.URIAuth info host _) = fromMaybe auth $ U.uriAuthority uri

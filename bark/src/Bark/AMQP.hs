@@ -13,7 +13,25 @@ import Data.Hashable
 import Network.AMQP
 import Bark.Types
 
-import qualified Data.HashTable.IO as H
+import qualified Data.ByteString.Char8 as C
+import qualified Data.HashTable.IO     as H
+
+type HashTable k v = H.BasicHashTable k v
+
+data CacheKey = CacheKey Category Severity deriving (Eq)
+
+instance Hashable CacheKey where
+    hash (CacheKey cat sev) = hash [cat, sev]
+
+type BindingCache = HashTable CacheKey Binding
+
+data AMQPConn = AMQPConn
+    { amqpHost    :: Host
+    , amqpService :: Service
+    , amqpConn    :: Connection
+    , amqpChan    :: Channel
+    , amqpCache   :: BindingCache
+    }
 
 conduitAMQP :: MonadResource m
             => URI
@@ -43,23 +61,6 @@ sinkAMQP uri host serv =
 -- Internal
 --
 
-type HashTable k v = H.BasicHashTable k v
-
-data CacheKey = CacheKey Category Severity deriving (Eq)
-
-instance Hashable CacheKey where
-    hash (CacheKey (Category cat) (Severity sev)) = hash [cat, sev]
-
-type BindingCache = HashTable CacheKey Binding
-
-data AMQPConn = AMQPConn
-    { amqpHost    :: Host
-    , amqpService :: Service
-    , amqpConn    :: Connection
-    , amqpChan    :: Channel
-    , amqpCache   :: BindingCache
-    }
-
 disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn
 
@@ -71,8 +72,8 @@ connect URI{..} host serv = do
     _     <- declareExchange chan opts
     return $ AMQPConn host serv conn chan cache
   where
-    opts = newExchange { exchangeName = toString serv
-                       , exchangeType = "topic"
+    opts = newExchange { exchangeName    = C.unpack serv
+                       , exchangeType    = "topic"
                        , exchangeDurable = True }
 
 declare :: AMQPConn -> Event -> IO Binding
@@ -92,7 +93,8 @@ bind AMQPConn{..} evt idx = do
     return bnd
   where
     bnd@Binding{..} = fromEvent evt amqpHost amqpService
-    opts            = newQueue { queueName = bndQueue, queueDurable = True }
+    opts = newQueue { queueName    = bndQueue
+                    , queueDurable = True }
 
 publish :: AMQPConn -> Event -> IO ()
 publish conn@AMQPConn{..} msg = do

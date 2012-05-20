@@ -6,15 +6,13 @@ module Bark.Options
     , parseOptions
     ) where
 
-import Control.Applicative ((<$>))
-import Control.Monad       (when)
+import Control.Applicative    ((<$>))
+import Control.Monad          (when)
 import Data.Version
-import Network.BSD         (getHostName)
+import Network.BSD            (getHostName)
 import System.Console.CmdArgs
-import System.Environment  (getArgs, withArgs, getProgName)
-import System.Exit         (ExitCode(..), exitWith)
-
-import qualified Data.ByteString.Char8 as B
+import System.Environment     (getArgs, withArgs, getProgName)
+import System.Exit            (ExitCode(..), exitWith)
 
 data Style = Exact | Incremental deriving (Data, Typeable, Show)
 
