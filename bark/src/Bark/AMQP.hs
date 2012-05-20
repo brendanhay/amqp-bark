@@ -7,14 +7,12 @@ module Bark.AMQP
 
 import Control.Monad              (void)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
-import Data.ByteString.Char8      (unpack)
 import Data.ByteString.Lazy.Char8 (fromChunks)
 import Data.Conduit
 import Data.Hashable
 import Network.AMQP
 import Bark.Types
 
-import qualified Data.ByteString   as B
 import qualified Data.HashTable.IO as H
 
 conduitAMQP :: MonadResource m
@@ -47,10 +45,10 @@ sinkAMQP uri host serv =
 
 type HashTable k v = H.BasicHashTable k v
 
-data CacheKey = CacheKey B.ByteString B.ByteString deriving (Eq)
+data CacheKey = CacheKey Category Severity deriving (Eq)
 
 instance Hashable CacheKey where
-    hash (CacheKey cat sev) = hash [cat, sev]
+    hash (CacheKey (Category cat) (Severity sev)) = hash [cat, sev]
 
 type BindingCache = HashTable CacheKey Binding
 
@@ -73,7 +71,7 @@ connect URI{..} host serv = do
     _     <- declareExchange chan opts
     return $ AMQPConn host serv conn chan cache
   where
-    opts = newExchange { exchangeName = unpack serv
+    opts = newExchange { exchangeName = toString serv
                        , exchangeType = "topic"
                        , exchangeDurable = True }
 

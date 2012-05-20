@@ -27,7 +27,7 @@ conduitEvent delim strip =
   where
     msg input = case parseOnly parser input of
         Right m -> m
-        Left  e -> Event "error" "error" . Error $ pack e
+        Left  e -> mkEvent "error" "error" . Error $ pack e
     conduit = NeedInput push mempty
     push    = HaveOutput conduit (return ()) . msg
 
@@ -58,7 +58,7 @@ parser = do
     sev  <- severity
     cat  <- category
     body <- takeByteString
-    return $! Event sev cat (Payload body)
+    return $! mkEvent cat sev (Payload body)
 
 conduitSplit :: (Delimiter d, Monad m)
              => d

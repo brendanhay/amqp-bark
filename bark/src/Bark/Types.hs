@@ -1,53 +1,65 @@
-{-# LANGUAGE OverloadedStrings, MagicHash, RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings, MagicHash,
+    RecordWildCards #-}
 
-module Bark.Types
-    ( Host
-    , Service
-    , Category
-    , Severity
-    , RoutingKey
+module Bark.Types (
+    -- * Exported Types
+      Host(..)
+    , Service(..)
+    , Category(..)
+    , Severity(..)
     , Binding(..)
     , Body(..)
     , Event(..)
     , URI(..)
+
+    -- * Strings
+    , ToString(..)
+
+    -- * Defaults
     , defaultSeverity
+
+    -- * Constructors
     , mkBinding
     , fromEvent
+    , mkEvent
+    , parseURI
+
+    -- * Routing
     , publishKey
     , declareKey
-    , parseURI
     ) where
 
 import Data.Char       (isAsciiUpper, isAscii, isUpper)
+import Data.Data (Data, Typeable)
 import Data.List.Split (splitOn)
 import Data.Maybe      (fromJust, fromMaybe)
+import Data.String     (IsString(..))
 import GHC.Base
 
 import qualified Data.ByteString       as B
 import qualified Data.ByteString.Char8 as C
 import qualified Network.URI           as U
 
-type Host     = B.ByteString
-type Service  = B.ByteString
-type Category = B.ByteString
-type Severity = B.ByteString
+newtype Host = Host B.ByteString deriving (Data, Typeable, Show, Eq)
 
-type Exchange   = String
-type Queue      = String
-type RoutingKey = String
+newtype Service = Service B.ByteString deriving (Data, Typeable, Show, Eq)
+
+newtype Category = Category B.ByteString deriving (Eq, Show)
+
+newtype Severity = Severity B.ByteString deriving (Eq, Show)
 
 data Binding = Binding
-    { bndExchange :: Exchange
-    , bndQueue    :: Queue
-    , bndExplicit :: RoutingKey
-    , bndWildCard :: RoutingKey
+    { bndExchange :: String
+    , bndQueue    :: String
+    , bndExplicit :: String
+    , bndWildCard :: String
     } deriving (Eq, Show)
 
 data Body = Payload B.ByteString | Error B.ByteString deriving (Eq, Show)
 
 data Event = Event
-    { evtCategory :: !B.ByteString
-    , evtSeverity :: !B.ByteString
+    { evtCategory :: !Category
+    , evtSeverity :: !Severity
     , evtBody     :: !Body
     } deriving (Eq, Show)
 
@@ -58,40 +70,75 @@ data URI = URI
     , uriVHost :: String
     } deriving (Show, Eq)
 
+--
+-- Strings
+--
+
+instance IsString Host where
+    fromString s = Host $ C.pack s
+
+instance IsString Service where
+    fromString s = Service $ C.pack s
+
+class ToString a where
+    toString :: a -> String
+
+instance ToString Service where
+    toString (Service serv) = C.unpack serv
+
+--
+-- Defaults
+--
+
 defaultSeverity :: B.ByteString
 defaultSeverity = "INFO"
+
+--
+-- Constructors
+--
 
 mkBinding :: Host
           -> Service
           -> Category
           -> Severity
           -> Binding
-mkBinding host serv cat sev =
+mkBinding host (Service serv) cat sev =
     Binding exchange queue publish declare
   where
     exchange = C.unpack serv
-    queue    = normalise [serv, cat, sev]
+    queue    = name serv cat sev
     publish  = publishKey host cat sev
     declare  = declareKey cat sev
 
 fromEvent :: Event -> Host -> Service -> Binding
 fromEvent Event{..} host serv = mkBinding host serv evtCategory evtSeverity
 
-publishKey :: Host -> Category -> Severity -> RoutingKey
-publishKey host cat sev = normalise [host, cat, sev]
-
-declareKey :: Category -> Severity -> RoutingKey
-declareKey cat sev = normalise [B.empty, cat, sev]
+mkEvent :: B.ByteString -> B.ByteString -> Body -> Event
+mkEvent cat sev body = Event (Category cat) (Severity sev) body
 
 parseURI :: String -> URI
 parseURI = conv . fromJust . U.parseURI
 
 --
+-- Routing
+--
+
+publishKey :: Host -> Category -> Severity -> String
+publishKey (Host h) = name h
+
+declareKey :: Category -> Severity -> String
+declareKey = name B.empty
+
+--
 -- Internal
 --
 
-normalise :: [B.ByteString] -> String
-normalise = C.unpack . C.map lowercase . B.intercalate "." . map wildcard
+name :: B.ByteString -> Category -> Severity -> String
+name prefix (Category cat) (Severity sev) =
+    C.unpack $ normalise [prefix, cat, sev]
+
+normalise :: [B.ByteString] -> B.ByteString
+normalise = C.map lowercase . B.intercalate "." . map wildcard
   where
     wildcard bstr | B.null bstr = "*"
                   | otherwise   = bstr
@@ -112,6 +159,7 @@ conv uri = URI host vhost user pass
     [user, pass] = splitOn ":" $ trim info
 
 trim :: String -> String
-trim = f . f
+trim =
+    f . f
   where
     f = reverse . dropWhile (== '@')

@@ -60,13 +60,16 @@ version = Version
 validate :: Options -> IO Options
 validate opts@Options{..} = do
     exitWhen (null optDelimiter) "--delimiter cannot be blank"
-    exitWhen (B.null optService)   "--service cannot be blank"
+    exitWhen (B.null serv)       "--service cannot be blank"
     exitWhen (optBuffer <= 0)    "--buffer must be greater than zero"
     exitWhen (optBound <= 0)     "--bound must be greater than zero"
-    host <- hostName
-    return $ if B.null optHost
-              then opts { optHost = B.pack host }
-              else opts
+    localhost <- hostName
+    return $ addHost localhost
+  where
+    (Service serv) = optService
+    (Host host)    = optHost
+    addHost h | B.null host = opts { optHost = Host $ B.pack h }
+              | otherwise   = opts
 
 exitWhen :: Bool -> String -> IO ()
 exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)

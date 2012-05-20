@@ -52,4 +52,9 @@ parser delim = do
     sev  <- severity
     cat  <- category
     body <- manyTill (satisfy $ const True) $ string (pack delim)
-    return $! Event sev cat . Payload $ B.pack body
+    return $! mkEvent cat sev . Payload $ B.pack body
+
+--
+--
+--
+
