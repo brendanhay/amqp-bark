@@ -31,7 +31,3 @@ subscribe URI{..} service host cat sev callback = do
     queue    = ""
     exchange = service
     key      = publishKey host cat sev
-
---
--- Internal
---
