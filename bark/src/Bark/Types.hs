@@ -44,9 +44,9 @@ newtype Host = Host B.ByteString deriving (Data, Typeable, Show, Eq)
 
 newtype Service = Service B.ByteString deriving (Data, Typeable, Show, Eq)
 
-newtype Category = Category B.ByteString deriving (Eq, Show)
+newtype Category = Category B.ByteString deriving (Data, Typeable, Show, Eq)
 
-newtype Severity = Severity B.ByteString deriving (Eq, Show)
+newtype Severity = Severity B.ByteString deriving (Data, Typeable, Show, Eq)
 
 data Binding = Binding
     { bndExchange :: String
@@ -74,17 +74,23 @@ data URI = URI
 -- Strings
 --
 
+class ToString a where
+    toString :: a -> String
+
+instance ToString Service where
+    toString (Service serv) = C.unpack serv
+
 instance IsString Host where
     fromString s = Host $ C.pack s
 
 instance IsString Service where
     fromString s = Service $ C.pack s
 
-class ToString a where
-    toString :: a -> String
+instance IsString Category where
+    fromString s = Category $ C.pack s
 
-instance ToString Service where
-    toString (Service serv) = C.unpack serv
+instance IsString Severity where
+    fromString s = Severity $ C.pack s
 
 --
 -- Defaults
@@ -114,7 +120,7 @@ fromEvent :: Event -> Host -> Service -> Binding
 fromEvent Event{..} host serv = mkBinding host serv evtCategory evtSeverity
 
 mkEvent :: B.ByteString -> B.ByteString -> Body -> Event
-mkEvent cat sev body = Event (Category cat) (Severity sev) body
+mkEvent cat sev = Event (Category cat) (Severity sev)
 
 parseURI :: String -> URI
 parseURI = conv . fromJust . U.parseURI

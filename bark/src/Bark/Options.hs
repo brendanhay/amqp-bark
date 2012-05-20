@@ -13,23 +13,22 @@ import Network.BSD         (getHostName)
 import System.Console.CmdArgs
 import System.Environment  (getArgs, withArgs, getProgName)
 import System.Exit         (ExitCode(..), exitWith)
-import Bark.Types
 
 import qualified Data.ByteString.Char8 as B
 
-data Style = Exact | Incremental deriving (Data, Typeable, Show, Eq)
+data Style = Exact | Incremental deriving (Data, Typeable, Show)
 
 data Options = Options
     { optDelimiter :: String
-    , optService   :: Service
-    , optHost      :: Host
+    , optService   :: String
+    , optHost      :: String
     , optUri       :: String
     , optBuffer    :: Int
     , optBound     :: Int
     , optParser    :: Style
     , optTee       :: Bool
     , optStrip     :: Bool
-    } deriving (Data, Typeable, Show, Eq)
+    } deriving (Data, Typeable, Show)
 
 parseOptions :: IO Options
 parseOptions = do
@@ -41,6 +40,12 @@ parseOptions = do
 -- Internal
 --
 
+version :: Version
+version = Version
+    { versionBranch = [0, 1, 0]
+    , versionTags   = ["experimental"]
+    }
+
 options :: IO Options
 options = do
     app <- getProgName
@@ -51,34 +56,25 @@ options = do
         &= helpArg [explicit, name "help", name "h"]
         &= program ("Usage: " ++ app)
 
-version :: Version
-version = Version
-    { versionBranch = [0, 1, 0]
-    , versionTags   = ["experimental"]
-    }
-
 validate :: Options -> IO Options
 validate opts@Options{..} = do
     exitWhen (null optDelimiter) "--delimiter cannot be blank"
-    exitWhen (B.null serv)       "--service cannot be blank"
+    exitWhen (null optService)   "--service cannot be blank"
     exitWhen (optBuffer <= 0)    "--buffer must be greater than zero"
     exitWhen (optBound <= 0)     "--bound must be greater than zero"
-    localhost <- hostName
-    return $ addHost localhost
-  where
-    (Service serv) = optService
-    (Host host)    = optHost
-    addHost h | B.null host = opts { optHost = Host $ B.pack h }
-              | otherwise   = opts
+    addHostName opts
 
 exitWhen :: Bool -> String -> IO ()
 exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
-hostName :: IO String
-hostName = map f <$> getHostName
+addHostName :: Options -> IO Options
+addHostName opts@Options{..} =
+    addHost <$> map f <$> getHostName
   where
     f '.' = '_'
     f c   = c
+    addHost h | null optHost = opts { optHost = h }
+              | otherwise    = opts
 
 defaults :: Options
 defaults = Options

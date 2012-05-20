@@ -14,7 +14,7 @@ import Bark.Conduit
 import Bark.Options
 import Bark.Types
 
-import qualified Data.ByteString          as B
+import qualified Data.ByteString.Char8  as B
 import qualified Bark.Event.Exact       as E
 import qualified Bark.Event.Incremental as I
 
@@ -41,10 +41,12 @@ sinkEvents Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
         $= tee (parser optDelimiter optStrip)
-        $$ sinkAMQP (parseURI optUri) optHost optService
+        $$ sinkAMQP (parseURI optUri) host serv
   where
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
     parser = case optParser of
         Exact       -> E.conduitEvent
         Incremental -> I.conduitEvent
+    host = Host $ B.pack optHost
+    serv = Service $ B.pack optService
