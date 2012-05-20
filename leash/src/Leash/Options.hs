@@ -10,7 +10,7 @@ import Data.Version
 import System.Console.CmdArgs
 import System.Environment  (getArgs, withArgs, getProgName)
 import System.Exit         (ExitCode(..), exitWith)
-import Leash.Types
+import Bark.Types
 
 data Options = Options
     { optService   :: String

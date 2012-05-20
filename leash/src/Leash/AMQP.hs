@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Leash.AMQP
     ( subscribe
 
@@ -16,10 +18,10 @@ subscribe :: URI
           -> Host
           -> Category
           -> Severity
-          -> ((Message,Envelope) -> IO ())
+          -> ((Message, Envelope) -> IO ())
           -> IO Connection
-subscribe uri service host cat sev callback = do
-    conn  <- mkConnection uri
+subscribe URI{..} service host cat sev callback = do
+    conn  <- openConnection uriHost uriVHost uriUser uriPass
     chan  <- openChannel conn
     _     <- declareQueue chan newQueue { queueName = queue, queueAutoDelete = True, queueDurable = False }
     _     <- bindQueue chan queue exchange key
@@ -28,22 +30,8 @@ subscribe uri service host cat sev callback = do
   where
     queue    = ""
     exchange = service
-    key      = routingKey host cat sev
+    key      = publishKey host cat sev
 
 --
 -- Internal
 --
-
-mkConnection :: URI -> IO Connection
-mkConnection uri =
-    openConnection host vhost user pwd
-  where
-    auth = URIAuth "guest:guest" "127.0.0.1" ""
-    (URIAuth info host _) = fromMaybe auth $ uriAuthority uri
-    vhost = uriPath uri
-    [user, pwd] = splitOn ":" $ trim info
-
-trim :: String -> String
-trim = f . f
-  where
-    f = reverse . dropWhile (== '@')

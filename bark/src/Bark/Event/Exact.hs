@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, ExistentialQuantification #-}
 
-module Bark.Message.Exact
-    ( conduitMessage
+module Bark.Event.Exact
+    ( conduitEvent
     ) where
 
 import Data.Attoparsec
@@ -13,21 +13,21 @@ import Data.Monoid              (mempty)
 import Data.Word                (Word8)
 import Foreign.ForeignPtr       (withForeignPtr)
 import Foreign.Ptr              (nullPtr, plusPtr, minusPtr)
-import Bark.Message.Parser
+import Bark.Event.Parser
 import Bark.Types
 
 import qualified Data.ByteString as B
 
-conduitMessage :: MonadResource m
-               => String
-               -> Bool
-               -> Conduit B.ByteString m Message
-conduitMessage delim strip =
+conduitEvent :: MonadResource m
+             => String
+             -> Bool
+             -> Conduit B.ByteString m Event
+conduitEvent delim strip =
     conduitSplit (fromString delim) strip =$= conduit
   where
     msg input = case parseOnly parser input of
         Right m -> m
-        Left  e -> Message "error" "error" . Error $ pack e
+        Left  e -> Event "error" "error" . Error $ pack e
     conduit = NeedInput push mempty
     push    = HaveOutput conduit (return ()) . msg
 
@@ -53,12 +53,12 @@ fromString :: String -> AnyDelimiter
 fromString str | length str > 1 = AnyDelimiter $ pack str
                | otherwise      = AnyDelimiter . c2w $ head str
 
-parser :: Parser Message
+parser :: Parser Event
 parser = do
     sev  <- severity
     cat  <- category
     body <- takeByteString
-    return $! Message sev cat (Payload body)
+    return $! Event sev cat (Payload body)
 
 conduitSplit :: (Delimiter d, Monad m)
              => d

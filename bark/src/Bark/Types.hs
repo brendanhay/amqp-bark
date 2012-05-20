@@ -8,11 +8,11 @@ module Bark.Types
     , RoutingKey
     , Binding(..)
     , Body(..)
-    , Message(..)
+    , Event(..)
     , URI(..)
     , defaultSeverity
     , mkBinding
-    , fromMessage
+    , fromEvent
     , publishKey
     , declareKey
     , parseURI
@@ -27,33 +27,28 @@ import qualified Data.ByteString       as B
 import qualified Data.ByteString.Char8 as C
 import qualified Network.URI           as U
 
-type Host = B.ByteString
-
-type Service = B.ByteString
-
+type Host     = B.ByteString
+type Service  = B.ByteString
 type Category = B.ByteString
-
 type Severity = B.ByteString
 
-type Exchange = String
-
-type Queue = String
-
+type Exchange   = String
+type Queue      = String
 type RoutingKey = String
 
 data Binding = Binding
-    { boundExchange   :: Exchange
-    , boundQueue      :: Queue
-    , boundPublishKey :: RoutingKey
-    , boundDeclareKey :: RoutingKey
+    { bndExchange :: Exchange
+    , bndQueue    :: Queue
+    , bndExplicit :: RoutingKey
+    , bndWildCard :: RoutingKey
     } deriving (Eq, Show)
 
 data Body = Payload B.ByteString | Error B.ByteString deriving (Eq, Show)
 
-data Message = Message
-    { messageCategory :: !B.ByteString
-    , messageSeverity :: !B.ByteString
-    , messageBody     :: !Body
+data Event = Event
+    { evtCategory :: !B.ByteString
+    , evtSeverity :: !B.ByteString
+    , evtBody     :: !Body
     } deriving (Eq, Show)
 
 data URI = URI
@@ -79,12 +74,8 @@ mkBinding host serv cat sev =
     publish  = publishKey host cat sev
     declare  = declareKey cat sev
 
-fromMessage :: Host
-            -> Service
-            -> Message
-            -> Binding
-fromMessage serv host Message{..} =
-    mkBinding serv host messageCategory messageSeverity
+fromEvent :: Event -> Host -> Service -> Binding
+fromEvent Event{..} host serv = mkBinding host serv evtCategory evtSeverity
 
 publishKey :: Host -> Category -> Severity -> RoutingKey
 publishKey host cat sev = normalise [host, cat, sev]

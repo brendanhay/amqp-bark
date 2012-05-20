@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Message.Parser
+module Bark.Event.Parser
     ( severity
     , category
     ) where

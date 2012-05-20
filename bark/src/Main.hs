@@ -15,8 +15,8 @@ import Bark.Options
 import Bark.Types
 
 import qualified Data.ByteString          as B
-import qualified Bark.Message.Exact       as E
-import qualified Bark.Message.Incremental as I
+import qualified Bark.Event.Exact       as E
+import qualified Bark.Event.Incremental as I
 
 main :: IO ()
 main = do
@@ -24,7 +24,7 @@ main = do
     print opts
     chan <- atomically $ newTBMChan optBound
     _    <- forkIO $ sinkStdin opts chan
-    sinkMessages opts chan
+    sinkEvents opts chan
 
 --
 -- Internal
@@ -36,8 +36,8 @@ sinkStdin Options{..} chan =
         $  sourceHandle stdin optBuffer
         $$ sinkTBMChan chan
 
-sinkMessages :: Options -> TBMChan B.ByteString -> IO ()
-sinkMessages Options{..} chan =
+sinkEvents :: Options -> TBMChan B.ByteString -> IO ()
+sinkEvents Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
         $= tee (parser optDelimiter optStrip)
@@ -46,5 +46,5 @@ sinkMessages Options{..} chan =
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
     parser = case optParser of
-        Exact       -> E.conduitMessage
-        Incremental -> I.conduitMessage
+        Exact       -> E.conduitEvent
+        Incremental -> I.conduitEvent

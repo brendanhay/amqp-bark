@@ -1,22 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Message.Incremental
-    ( conduitMessage
+module Bark.Event.Incremental
+    ( conduitEvent
     ) where
 
 import Data.Attoparsec
 import Data.ByteString.Char8        (pack)
 import Data.Conduit          hiding (Done)
-import Bark.Message.Parser
+import Bark.Event.Parser
 import Bark.Types
 
 import qualified Data.ByteString as B
 
-conduitMessage :: MonadResource m
-               => String
-               -> Bool
-               -> Conduit B.ByteString m Message
-conduitMessage delim _ = conduitParser $ parser delim
+conduitEvent :: MonadResource m
+             => String
+             -> Bool
+             -> Conduit B.ByteString m Event
+conduitEvent delim _ = conduitParser $ parser delim
 
 --
 -- Internal
@@ -47,9 +47,9 @@ conduitParser p0 = conduitState newParser push close
             Fail _ _contexts _ -> return []
             Partial _          -> return []
 
-parser :: String -> Parser Message
+parser :: String -> Parser Event
 parser delim = do
     sev  <- severity
     cat  <- category
     body <- manyTill (satisfy $ const True) $ string (pack delim)
-    return $! Message sev cat . Payload $ B.pack body
+    return $! Event sev cat . Payload $ B.pack body
