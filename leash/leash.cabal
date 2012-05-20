@@ -29,18 +29,9 @@ executable leash
   ghc-prof-options: -prof -fprof-auto -auto-all -with-rtsopts=-p
 
   build-depends:    base >= 4.3 && < 5
+                  , bark
                   , mtl
                   , transformers
                   , bytestring
-                  , network
-                  , resourcet
-                  , conduit
-                  , stm
-                  , stm-conduit
-                  , attoparsec
-                  , attoparsec-conduit
                   , cmdargs
                   , amqp
-                  , hashtables
-                  , hashable
-                  , split

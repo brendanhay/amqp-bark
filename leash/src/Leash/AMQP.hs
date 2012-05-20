@@ -8,11 +8,8 @@ module Leash.AMQP
     , closeConnection
     ) where
 
-import Data.Maybe      (fromMaybe)
-import Data.List.Split (splitOn)
 import Network.AMQP
-import Network.URI     (URI(..), URIAuth(..))
-import Leash.Types
+import Bark.Types
 
 subscribe :: URI
           -> String

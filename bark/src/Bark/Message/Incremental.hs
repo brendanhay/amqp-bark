@@ -7,8 +7,8 @@ module Bark.Message.Incremental
 import Data.Attoparsec
 import Data.ByteString.Char8        (pack)
 import Data.Conduit          hiding (Done)
-import Bark.Message.Types
 import Bark.Message.Parser
+import Bark.Types
 
 import qualified Data.ByteString as B
 

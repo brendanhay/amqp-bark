@@ -8,7 +8,7 @@ module Bark.Message.Parser
 import Control.Applicative
 import Data.Attoparsec
 import GHC.Word (Word8)
-import Bark.Message.Types
+import Bark.Types
 
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString       as B
@@ -16,7 +16,6 @@ import qualified Data.ByteString       as B
 severity :: Parser B.ByteString
 severity = bracketedValue
 {-# INLINE severity #-}
-
 
 category :: Parser B.ByteString
 category = bracketedValue <|> pure defaultSeverity

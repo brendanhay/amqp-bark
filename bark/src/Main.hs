@@ -8,12 +8,11 @@ import Control.Concurrent (forkIO)
 import Control.Monad.STM  (atomically)
 import Data.Conduit
 import Data.Conduit.TMChan
-import Data.Maybe         (fromJust)
-import Network.URI        (parseURI)
 import System.IO          (stdin)
 import Bark.AMQP
 import Bark.Conduit
 import Bark.Options
+import Bark.Types
 
 import qualified Data.ByteString          as B
 import qualified Bark.Message.Exact       as E
@@ -42,11 +41,10 @@ sinkMessages Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
         $= tee (parser optDelimiter optStrip)
-        $$ sinkAMQP uri optLocal optService
+        $$ sinkAMQP (parseURI optUri) optHost optService
   where
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
     parser = case optParser of
         Exact       -> E.conduitMessage
         Incremental -> I.conduitMessage
-    uri = fromJust $ parseURI optUri

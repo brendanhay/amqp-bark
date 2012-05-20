@@ -13,8 +13,8 @@ import Data.Monoid              (mempty)
 import Data.Word                (Word8)
 import Foreign.ForeignPtr       (withForeignPtr)
 import Foreign.Ptr              (nullPtr, plusPtr, minusPtr)
-import Bark.Message.Types
 import Bark.Message.Parser
+import Bark.Types
 
 import qualified Data.ByteString as B
 

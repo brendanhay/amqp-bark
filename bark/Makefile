@@ -1,18 +1,18 @@
 .PHONY: build all clean conf prof
 
 build:
-	cabal build
+	cabal-dev build
 
 all: conf build
 
 clean:
-	cabal clean
+	cabal-dev clean
 
-conf: clean
-	cabal configure
+conf:
+	cabal-dev configure
 
 prof: clean
-	cabal configure --enable-executable-profiling
+	cabal-dev configure --enable-executable-profiling
 	$(MAKE) build
 	cat ./script/prefix.log | ./dist/build/bark/bark --service=prof
 

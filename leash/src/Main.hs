@@ -4,10 +4,9 @@ module Main
     ( main
     ) where
 
-import Data.Maybe          (fromJust)
-import Network.URI         (parseURI)
 import Leash.AMQP
 import Leash.Options
+import Bark.Types
 
 import qualified Data.ByteString.Lazy.Char8 as L
 
@@ -15,7 +14,8 @@ main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
     print opts
-    conn <- subscribe (fromJust $ parseURI optUri) optService optHost optCategory optSeverity recv
+    conn <- subscribe (parseURI optUri) optService optHost optCategory optSeverity recv
+    putStrLn "Press any key to interrupt"
     _    <- getLine
     closeConnection conn
     putStrLn "done"

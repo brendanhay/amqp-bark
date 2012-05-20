@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, DeriveDataTypeable, RecordWildCards #-}
 
 module Leash.Options
     ( Options(..)
@@ -62,19 +62,19 @@ defaults = Options
         &= help "The application service name (required)"
         &= explicit
 
-    , optHost = Host
+    , optHost = ""
         &= name "host"
         &= typ  "HOST"
         &= help "The host to subscribe to (default: any)"
         &= explicit
 
-    , optCategory = Category
+    , optCategory = ""
         &= name "category"
         &= typ  "CATEGORY"
         &= help "The category to subscribe to (default: all)"
         &= explicit
 
-    , optSeverity = Severity
+    , optSeverity = ""
         &= name "severity"
         &= typ  "SEVERITY"
         &= help "The severity to subscribe to (default: all)"
