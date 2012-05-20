@@ -100,8 +100,7 @@ parseURI = conv . fromJust . U.parseURI
 --
 
 normalise :: [B.ByteString] -> String
-normalise =
-    C.unpack . C.map lowercase . B.intercalate "." . map wildcard
+normalise = C.unpack . C.map lowercase . B.intercalate "." . map wildcard
   where
     wildcard bstr | B.null bstr = "*"
                   | otherwise   = bstr
