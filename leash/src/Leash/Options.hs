@@ -5,19 +5,18 @@ module Leash.Options
     , parseOptions
     ) where
 
-import Control.Monad       (when)
+import Control.Monad          (when)
 import Data.Version
 import System.Console.CmdArgs
-import System.Environment  (getArgs, withArgs, getProgName)
-import System.Exit         (ExitCode(..), exitWith)
-import Bark.Types
+import System.Environment     (getArgs, withArgs, getProgName)
+import System.Exit            (ExitCode(..), exitWith)
 
 data Options = Options
-    { optService   :: String
-    , optHost      :: Host
-    , optCategory  :: Category
-    , optSeverity  :: Severity
-    , optUri       :: String
+    { optHost     :: String
+    , optService  :: String
+    , optCategory :: String
+    , optSeverity :: String
+    , optUri      :: String
     } deriving (Data, Typeable, Show, Eq)
 
 parseOptions :: IO Options
@@ -50,22 +49,23 @@ validate :: Options -> IO Options
 validate opts@Options{..} = do
     exitWhen (null optService) "--service cannot be blank"
     return opts
+  where
 
 exitWhen :: Bool -> String -> IO ()
 exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
 defaults :: Options
 defaults = Options
-    { optService = ""
-        &= name "service"
-        &= typ  "SERVICE"
-        &= help "The application service name (required)"
-        &= explicit
-
-    , optHost = ""
+    { optHost = ""
         &= name "host"
         &= typ  "HOST"
         &= help "The host to subscribe to (default: any)"
+        &= explicit
+
+    , optService = ""
+        &= name "service"
+        &= typ  "SERVICE"
+        &= help "The application service name (required)"
         &= explicit
 
     , optCategory = ""

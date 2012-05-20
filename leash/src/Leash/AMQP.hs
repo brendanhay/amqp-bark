@@ -13,21 +13,26 @@ module Leash.AMQP
 import Network.AMQP
 import Bark.Types
 
+import qualified Data.ByteString.Char8 as B
+
 subscribe :: URI
-          -> String
           -> Host
+          -> Service
           -> Category
           -> Severity
           -> ((Message, Envelope) -> IO ())
           -> IO Connection
-subscribe URI{..} service host cat sev callback = do
+subscribe URI{..} host serv cat sev callback = do
     conn <- openConnection uriHost uriVHost uriUser uriPass
     chan <- openChannel conn
-    _    <- declareQueue chan newQueue { queueName = queue, queueAutoDelete = True, queueDurable = False }
+    _    <- declareQueue chan opts
     _    <- bindQueue chan queue exchange key
     _    <- consumeMsgs chan queue NoAck callback
     return conn
   where
     queue    = ""
-    exchange = service
+    exchange = B.unpack serv
     key      = publishKey host cat sev
+    opts     = newQueue { queueName       = queue
+                        , queueAutoDelete = True
+                        , queueDurable    = False }
