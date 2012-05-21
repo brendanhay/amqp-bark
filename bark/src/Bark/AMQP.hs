@@ -56,8 +56,8 @@ sinkAMQP uri host serv =
         ex <- try' $ connect uri host serv
         case ex of
             Right conn -> return conn
-            Left  _    -> do
-                putStrLn "Ning.."
+            Left _ -> do
+                putStrLn $ "Retrying in " ++ show n
                 threadDelay n
                 alloc (n + 10000)
 
@@ -66,6 +66,7 @@ sinkAMQP uri host serv =
         case ex of
             Right _ -> return IOProcessing
             Left _ -> do
+                -- resource dealloc needs to occur here via release
                 disconnect conn
                 throwIO $ ConnectionException evt
 

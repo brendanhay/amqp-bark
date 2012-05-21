@@ -70,6 +70,6 @@ sinkEvents opts@Options{..} input = do
             return x
         Left (ConnectionException evt) -> do
             liftIO . atomically $ unGetTBMChan input evt
-            liftIO . putStrLn $ "Push: " ++ show evt
+            liftIO . putStrLn $ "Failed " ++ show evt
             sinkEvents opts input
 
