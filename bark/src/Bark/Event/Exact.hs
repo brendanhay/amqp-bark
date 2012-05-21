@@ -18,6 +18,20 @@ import Bark.Types
 
 import qualified Data.ByteString as B
 
+data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
+
+class Delimiter a where
+    split :: a -> Bool -> B.ByteString -> ([B.ByteString], B.ByteString)
+
+instance Delimiter AnyDelimiter where
+    split (AnyDelimiter d) = split d
+
+instance Delimiter Word8 where
+    split = breakByte
+
+instance Delimiter B.ByteString where
+    split = breakString
+
 conduitEvent :: MonadResource m
              => String
              -> Bool
@@ -34,20 +48,6 @@ conduitEvent delim strip =
 --
 -- Internal
 --
-
-data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
-
-class Delimiter a where
-    split :: a -> Bool -> B.ByteString -> ([B.ByteString], B.ByteString)
-
-instance Delimiter AnyDelimiter where
-    split (AnyDelimiter d) = split d
-
-instance Delimiter Word8 where
-    split = breakByte
-
-instance Delimiter B.ByteString where
-    split = breakString
 
 fromString :: String -> AnyDelimiter
 fromString str | length str > 1 = AnyDelimiter $ pack str

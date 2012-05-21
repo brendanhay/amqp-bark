@@ -20,9 +20,9 @@ SEVS = %w{
 
 def prefix
   if [true, false].sample
-    "[#{CATS.sample}]"
+    "[#{SEVS.sample}]"
   else
-    "[#{CATS.sample}][#{SEVS.sample}]"
+    "[#{SEVS.sample}][#{CATS.sample}]"
   end
 end
 
