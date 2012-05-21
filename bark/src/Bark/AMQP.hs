@@ -50,38 +50,33 @@ sinkAMQP :: (MonadBaseControl IO m, MonadResource m)
          -> Service
          -> Sink Event m ()
 sinkAMQP uri host serv =
-    sinkIO (tryConnect uri host serv 60000) disconnect tryPublish close
+    sinkIO (alloc 60000) disconnect push close
   where
+    alloc n = liftIO $ do
+        ex <- try' $ connect uri host serv
+        case ex of
+            Right conn -> return conn
+            Left  _    -> do
+                putStrLn "Ning.."
+                threadDelay n
+                alloc (n + 10000)
+
+    push conn evt = liftIO $ do
+        ex <- try' $ publish conn evt
+        case ex of
+            Right _ -> return IOProcessing
+            Left _ -> do
+                disconnect conn
+                throwIO $ ConnectionException evt
+
     close conn = liftIO . void $ disconnect conn
+
+    try' :: MonadBaseControl IO m => m a -> m (Either SomeException a)
+    try' = try
 
 --
 -- Internal
 --
-
-tryConnect :: URI -> Host -> Service -> Int -> IO AMQPConn
-tryConnect uri host serv retry = liftIO $ do
-    ex <- try' $ connect uri host serv
-    case ex of
-        Right conn -> return conn
-        Left  _    -> do
-            putStrLn "Retrying.."
-            threadDelay retry
-            tryConnect uri host serv (retry + 10000)
-
-tryPublish :: (MonadBaseControl IO m, MonadResource m)
-           => AMQPConn
-           -> Event
-           -> m (SinkIOResult Event ())
-tryPublish conn evt = liftIO $ do
-    ex <- try' $ publish conn evt
-    case ex of
-        Right _ -> return IOProcessing
-        Left _ -> do
-            disconnect conn
-            throwIO $ ConnectionException evt
-
-try' :: MonadBaseControl IO m => m a -> m (Either SomeException a)
-try' = try
 
 connect :: URI -> Host -> Service -> IO AMQPConn
 connect URI{..} host serv = do
