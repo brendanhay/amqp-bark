@@ -12,7 +12,6 @@ import System.IO           (stdin)
 import Bark.AMQP
 import Bark.Conduit
 import Bark.Options
-import Bark.Types
 
 import qualified Data.ByteString.Char8  as B
 import qualified Bark.Event.Exact       as E
@@ -40,8 +39,8 @@ sinkEvents :: Options -> TBMChan B.ByteString -> IO ()
 sinkEvents Options{..} chan =
     runResourceT
         $  sourceTBMChan chan
-        $= tee (parser optDelimiter optStrip)
-        $$ sinkAMQP (parseURI optUri) (B.pack optHost) (B.pack optService)
+        $= tee (parser optDelim optStrip)
+        $$ sinkAMQP optUri optHost optService
   where
     tee | optTee    = (=$= conduitShow)
         | otherwise = id

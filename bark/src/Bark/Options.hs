@@ -13,39 +13,48 @@ import Network.BSD            (getHostName)
 import System.Console.CmdArgs
 import System.Environment     (getArgs, withArgs, getProgName)
 import System.Exit            (ExitCode(..), exitWith)
+import Bark.Types
+
+import qualified Data.ByteString.Char8 as B
 
 data Style = Exact | Incremental deriving (Data, Typeable, Show)
 
-data Options = Options
-    { optDelimiter :: String
-    , optService   :: String
-    , optHost      :: String
-    , optUri       :: String
-    , optBuffer    :: Int
-    , optBound     :: Int
-    , optParser    :: Style
-    , optTee       :: Bool
-    , optStrip     :: Bool
+data Raw = Raw
+    { rawDelim   :: String
+    , rawHost    :: String
+    , rawService :: String
+    , rawUri     :: String
+    , rawBuffer  :: Int
+    , rawBound   :: Int
+    , rawParser  :: Style
+    , rawTee     :: Bool
+    , rawStrip   :: Bool
     } deriving (Data, Typeable, Show)
+
+data Options = Options
+    { optDelim   :: String
+    , optHost    :: Host
+    , optService :: Service
+    , optUri     :: URI
+    , optBuffer  :: Int
+    , optBound   :: Int
+    , optParser  :: Style
+    , optTee     :: Bool
+    , optStrip   :: Bool
+    } deriving (Show)
 
 parseOptions :: IO Options
 parseOptions = do
-    args' <- getArgs
-    opts  <- (if null args' then withArgs ["--help"] else id) options
-    validate opts
+    arg <- getArgs
+    raw <- (if null arg then withArgs ["--help"] else id) parse
+    return . conv =<< validate raw
 
 --
 -- Internal
 --
 
-version :: Version
-version = Version
-    { versionBranch = [0, 1, 0]
-    , versionTags   = ["experimental"]
-    }
-
-options :: IO Options
-options = do
+parse :: IO Raw
+parse = do
     app <- getProgName
     let ver = summary $ concat [app, ": ", showVersion version]
     cmdArgs $ defaults
@@ -54,75 +63,89 @@ options = do
         &= helpArg [explicit, name "help", name "h"]
         &= program ("Usage: " ++ app)
 
-validate :: Options -> IO Options
-validate opts@Options{..} = do
-    exitWhen (null optDelimiter) "--delimiter cannot be blank"
-    exitWhen (null optService)   "--service cannot be blank"
-    exitWhen (optBuffer <= 0)    "--buffer must be greater than zero"
-    exitWhen (optBound <= 0)     "--bound must be greater than zero"
-    addHostName opts
+conv :: Raw -> Options
+conv Raw{..} =
+    Options rawDelim host serv uri rawBuffer rawBound rawParser rawTee rawStrip
+  where
+    uri  = parseURI rawUri
+    host = B.pack rawHost
+    serv = B.pack rawService
+
+version :: Version
+version = Version
+    { versionBranch = [0, 1, 0]
+    , versionTags   = ["experimental"]
+    }
+
+validate :: Raw -> IO Raw
+validate raw@Raw{..} = do
+    exitWhen (null rawDelim)   "--delimiter cannot be blank"
+    exitWhen (null rawService) "--service cannot be blank"
+    exitWhen (rawBuffer <= 0)  "--buffer must be greater than zero"
+    exitWhen (rawBound <= 0)   "--bound must be greater than zero"
+    addHostName raw
 
 exitWhen :: Bool -> String -> IO ()
 exitWhen p msg = when p $ putStrLn msg >> exitWith (ExitFailure 1)
 
-addHostName :: Options -> IO Options
-addHostName opts@Options{..} =
+addHostName :: Raw -> IO Raw
+addHostName raw@Raw{..} =
     addHost <$> map f <$> getHostName
   where
     f '.' = '_'
     f c   = c
-    addHost h | null optHost = opts { optHost = h }
-              | otherwise    = opts
+    addHost h | null rawHost = raw { rawHost = h }
+              | otherwise    = raw
 
-defaults :: Options
-defaults = Options
-    { optDelimiter = "\n"
+defaults :: Raw
+defaults = Raw
+    { rawDelim = "\n"
         &= name "delimiter"
         &= typ  "STRING"
         &= help "A byte or string denoting output (default: \\n)"
         &= explicit
 
-    , optService = ""
+    , rawService = ""
         &= name "service"
         &= typ  "SERVICE"
         &= help "The application service name (required)"
         &= explicit
 
-    , optHost = ""
+    , rawHost = ""
         &= name "hostname"
         &= typ  "HOSTNAME"
         &= help "The local hostname (default: `hostname`)"
         &= explicit
 
-    , optUri = "amqp://guest:guest@127.0.0.1/"
+    , rawUri = "amqp://guest:guest@127.0.0.1/"
         &= name "uri"
         &= typ  "URI"
         &= help "The amqp uri (default: guest@localhost)"
         &= explicit
 
-    , optBuffer = 4096
+    , rawBuffer = 4096
         &= name "buffer"
         &= typ  "BYTES"
         &= help "The size of the stdin buffer (default: 4096)"
         &= explicit
 
-    , optBound = 512
+    , rawBound = 512
         &= name "bound"
         &= typ  "INT"
         &= help "The max number of '--buffer' chunks (default: 512)"
         &= explicit
 
-    , optParser = Exact
+    , rawParser = Exact
         &= name "parser"
         &= help "Use exact | incremental parsing (default: exact)"
         &= explicit
 
-    , optStrip = False
+    , rawStrip = False
         &= name "strip"
         &= help "Remove the delimiter from output (default: false)"
         &= explicit
 
-    , optTee = False
+    , rawTee = False
         &= name "tee"
         &= help "Additionally write output to stdout (default: false)"
         &= explicit
