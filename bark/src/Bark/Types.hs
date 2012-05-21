@@ -14,6 +14,7 @@ module Bark.Types (
     , URI(..)
 
     -- * Defaults
+    , defaultCategory
     , defaultSeverity
 
     -- * Constructors
@@ -46,13 +47,13 @@ data Binding = Binding
     , bndWildCard :: String
     } deriving (Eq, Show)
 
-data Body = Payload B.ByteString | Error B.ByteString deriving (Eq, Show)
+data Body = Payload B.ByteString | Error B.ByteString deriving (Ord, Eq, Show)
 
 data Event = Event
     { evtCategory :: !Category
     , evtSeverity :: !Severity
     , evtBody     :: !Body
-    } deriving (Eq, Show)
+    } deriving (Ord, Eq, Show)
 
 data URI = URI
     { uriUser  :: String
@@ -64,6 +65,9 @@ data URI = URI
 --
 -- Defaults
 --
+
+defaultCategory :: B.ByteString
+defaultCategory = "EVENT"
 
 defaultSeverity :: B.ByteString
 defaultSeverity = "INFO"

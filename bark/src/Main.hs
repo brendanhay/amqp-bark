@@ -1,17 +1,21 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleContexts, RankNTypes #-}
 
 module Main
     ( main
     ) where
 
-import Control.Concurrent  (forkIO)
-import Control.Monad.STM   (atomically)
+import Control.Concurrent          (forkIO)
+import Control.Exception.Lifted    (try)
+import Control.Monad.Trans.Control (MonadBaseControl)
+import Control.Monad.IO.Class      (liftIO)
+import Control.Monad.STM           (atomically)
 import Data.Conduit
 import Data.Conduit.TMChan
-import System.IO           (stdin)
+import System.IO                   (stdin)
 import Bark.AMQP
 import Bark.Conduit
 import Bark.Options
+import Bark.Types
 
 import qualified Data.ByteString.Char8  as B
 import qualified Bark.Event.Exact       as E
@@ -21,29 +25,49 @@ main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
     print opts
-    chan <- atomically $ newTBMChan optBound
-    _    <- forkIO $ sinkStdin opts chan
-    sinkEvents opts chan
+
+    raw    <- atomically $ newTBMChan optBound
+    events <- atomically $ newTBMChan optBound
+
+    _ <- forkIO . runResourceT $ sinkEvents opts events
+    _ <- forkIO . runResourceT $ conduitParser opts raw events
+
+    runResourceT $ sourceStdin opts raw
 
 --
 -- Internal
 --
 
-sinkStdin :: Options -> TBMChan B.ByteString -> IO ()
-sinkStdin Options{..} chan =
-    runResourceT
-        $  sourceHandle stdin optBuffer
-        $$ sinkTBMChan chan
+sourceStdin :: (MonadBaseControl IO m, MonadResource m)
+            => Options
+            -> TBMChan B.ByteString
+            -> m ()
+sourceStdin Options{..} output =
+    sourceHandle stdin optBuffer $$ sinkTBMChan output
 
-sinkEvents :: Options -> TBMChan B.ByteString -> IO ()
-sinkEvents Options{..} chan =
-    runResourceT
-        $  sourceTBMChan chan
-        $= tee (parser optDelim optStrip)
-        $$ sinkAMQP optUri optHost optService
+conduitParser :: (MonadBaseControl IO m, MonadResource m)
+             => Options
+             -> TBMChan B.ByteString
+             -> TBMChan Event
+             -> m ()
+conduitParser Options{..} input output =
+    sourceTBMChan input $= tee (parser optDelim optStrip) $$ sinkTBMChan output
   where
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
     parser = case optParser of
         Exact       -> E.conduitEvent
         Incremental -> I.conduitEvent
+
+sinkEvents :: (MonadBaseControl IO m, MonadResource m)
+           => Options
+           -> TBMChan Event
+           -> m ()
+sinkEvents opts@Options{..} input = do
+    ex <- try $ sourceTBMChan input $$ sinkAMQP optUri optHost optService
+    case ex of
+        Left (ConnectionException evt) -> do
+            liftIO $ atomically $ unGetTBMChan input evt
+            sinkEvents opts input
+        Right x ->
+            return x

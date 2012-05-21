@@ -14,11 +14,11 @@ import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString       as B
 
 severity :: Parser B.ByteString
-severity = bracketedValue
+severity = bracketedValue <|> pure defaultSeverity
 {-# INLINE severity #-}
 
 category :: Parser B.ByteString
-category = bracketedValue <|> pure defaultSeverity
+category = bracketedValue <|> pure defaultCategory
 {-# INLINE category #-}
 
 --

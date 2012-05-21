@@ -3,7 +3,8 @@
 module Leash.AMQP
     ( subscribe
 
-    -- * Netork.AMQP re-exports
+    -- * Network.AMQP re-exports
+    , AMQPException
     , Connection
     , Message(..)
     , Envelope

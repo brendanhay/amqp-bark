@@ -1,10 +1,16 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable, RecordWildCards, FlexibleContexts, RankNTypes #-}
 
 module Bark.AMQP
-    ( conduitAMQP
-    , sinkAMQP
+    ( sinkAMQP
+
+    -- * Network.AMQP re-exports
+    , AMQPException(..)
+    , ConnectionException(..)
     ) where
 
+import Data.Data (Typeable)
+import Control.Exception (Exception)
+import Control.Exception.Lifted   (try, throwIO)
 import Control.Monad              (void)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
 import Data.ByteString.Lazy.Char8 (fromChunks)
@@ -12,7 +18,7 @@ import Data.Conduit
 import Data.Hashable
 import Network.AMQP
 import Bark.Types
-
+import Control.Monad.Trans.Control (MonadBaseControl)
 import qualified Data.ByteString.Char8 as C
 import qualified Data.HashTable.IO     as H
 
@@ -33,20 +39,11 @@ data AMQPConn = AMQPConn
     , amqpCache   :: BindingCache
     }
 
-conduitAMQP :: MonadResource m
-            => URI
-            -> Host
-            -> Service
-            -> Conduit Event m Event
-conduitAMQP uri host serv =
-    conduitIO (connect uri host serv) disconnect push close
-  where
-    push conn msg = do
-        liftIO $ publish conn msg
-        return $ IOProducing [msg]
-    close conn    = liftIO $ disconnect conn >> return []
+data ConnectionException = ConnectionException Event deriving (Typeable, Show, Ord, Eq)
 
-sinkAMQP :: MonadResource m
+instance Exception ConnectionException
+
+sinkAMQP :: (MonadBaseControl IO m, MonadResource m)
          => URI
          -> Host
          -> Service
@@ -54,8 +51,18 @@ sinkAMQP :: MonadResource m
 sinkAMQP uri host serv =
     sinkIO (connect uri host serv) disconnect push close
   where
-    push conn msg = liftIO (publish conn msg >> return IOProcessing)
-    close conn    = liftIO . void $ disconnect conn
+    push conn msg = do
+        ex <- liftIO . try' $ publish conn msg
+        case ex of
+            Left _ -> do
+                close conn
+                throwIO $ ConnectionException msg
+            Right _ ->
+                 return IOProcessing
+      where
+        try' :: MonadBaseControl IO m => m a -> m (Either AMQPException a)
+        try' = try
+    close conn = liftIO . void $ disconnect conn
 
 --
 -- Internal
