@@ -66,8 +66,10 @@ sinkEvents :: (MonadBaseControl IO m, MonadResource m)
 sinkEvents opts@Options{..} input = do
     ex <- try $ sourceTBMChan input $$ sinkAMQP optUri optHost optService
     case ex of
-        Left (ConnectionException evt) -> do
-            liftIO $ atomically $ unGetTBMChan input evt
-            sinkEvents opts input
         Right x ->
             return x
+        Left (ConnectionException evt) -> do
+            liftIO . atomically $ unGetTBMChan input evt
+            liftIO . putStrLn $ "Push: " ++ show evt
+            sinkEvents opts input
+

@@ -9,7 +9,8 @@ module Bark.AMQP
     ) where
 
 import Data.Data (Typeable)
-import Control.Exception (Exception)
+import Control.Concurrent (threadDelay)
+import Control.Exception (Exception, SomeException)
 import Control.Exception.Lifted   (try, throwIO)
 import Control.Monad              (void)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
@@ -49,27 +50,38 @@ sinkAMQP :: (MonadBaseControl IO m, MonadResource m)
          -> Service
          -> Sink Event m ()
 sinkAMQP uri host serv =
-    sinkIO (connect uri host serv) disconnect push close
+    sinkIO (tryConnect uri host serv 60000) disconnect tryPublish close
   where
-    push conn msg = do
-        ex <- liftIO . try' $ publish conn msg
-        case ex of
-            Left _ -> do
-                close conn
-                throwIO $ ConnectionException msg
-            Right _ ->
-                 return IOProcessing
-      where
-        try' :: MonadBaseControl IO m => m a -> m (Either AMQPException a)
-        try' = try
     close conn = liftIO . void $ disconnect conn
 
 --
 -- Internal
 --
 
-disconnect :: AMQPConn -> IO ()
-disconnect = closeConnection . amqpConn
+tryConnect :: URI -> Host -> Service -> Int -> IO AMQPConn
+tryConnect uri host serv retry = liftIO $ do
+    ex <- try' $ connect uri host serv
+    case ex of
+        Right conn -> return conn
+        Left  _    -> do
+            putStrLn "Retrying.."
+            threadDelay retry
+            tryConnect uri host serv (retry + 10000)
+
+tryPublish :: (MonadBaseControl IO m, MonadResource m)
+           => AMQPConn
+           -> Event
+           -> m (SinkIOResult Event ())
+tryPublish conn evt = liftIO $ do
+    ex <- try' $ publish conn evt
+    case ex of
+        Right _ -> return IOProcessing
+        Left _ -> do
+            disconnect conn
+            throwIO $ ConnectionException evt
+
+try' :: MonadBaseControl IO m => m a -> m (Either SomeException a)
+try' = try
 
 connect :: URI -> Host -> Service -> IO AMQPConn
 connect URI{..} host serv = do
@@ -82,6 +94,9 @@ connect URI{..} host serv = do
     opts = newExchange { exchangeName    = C.unpack serv
                        , exchangeType    = "topic"
                        , exchangeDurable = True }
+
+disconnect :: AMQPConn -> IO ()
+disconnect = closeConnection . amqpConn
 
 declare :: AMQPConn -> Event -> IO Binding
 declare conn@AMQPConn{..} msg@Event{..} = do
