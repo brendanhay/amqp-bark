@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleContexts, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleContexts,
+    RankNTypes #-}
 
 module Main
     ( main

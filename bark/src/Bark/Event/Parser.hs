@@ -25,10 +25,12 @@ category = bracketedValue <|> pure defaultCategory
 -- Internal
 --
 
-bracket, unbracket :: Parser Word8
-bracket   = A.char8 '['
-unbracket = A.char8 ']'
+bracket :: Parser Word8
+bracket = A.char8 '['
 {-# INLINE bracket #-}
+
+unbracket :: Parser Word8
+unbracket = A.char8 ']'
 {-# INLINE unbracket #-}
 
 bracketedValue :: Parser B.ByteString
