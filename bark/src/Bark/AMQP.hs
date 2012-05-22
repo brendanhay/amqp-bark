@@ -2,17 +2,15 @@
 
 module Bark.AMQP
     ( sinkAMQP
+    , PublishFailure(..)
 
     -- * Network.AMQP re-exports
     , AMQPException(..)
-    , ConnectionException(..)
     ) where
 
-import Data.Data (Typeable)
-import Control.Concurrent (threadDelay)
-import Control.Exception (Exception, SomeException)
-import Control.Exception.Lifted   (try, throwIO)
-import Control.Monad              (void)
+import Control.Concurrent         (threadDelay)
+import Control.Exception          (SomeException)
+import Control.Exception.Lifted   (try)
 import Control.Monad.IO.Class     (MonadIO, liftIO)
 import Data.ByteString.Lazy.Char8 (fromChunks)
 import Data.Conduit
@@ -40,37 +38,36 @@ data AMQPConn = AMQPConn
     , amqpCache   :: BindingCache
     }
 
-data ConnectionException = ConnectionException Event deriving (Typeable, Show, Ord, Eq)
-
-instance Exception ConnectionException
+data PublishFailure = PublishFailure Event deriving (Show, Ord, Eq)
 
 sinkAMQP :: (MonadBaseControl IO m, MonadResource m)
          => URI
          -> Host
          -> Service
-         -> Sink Event m ()
+         -> Sink Event m (Maybe PublishFailure)
 sinkAMQP uri host serv =
     sinkIO (alloc 60000) disconnect push close
   where
     alloc n = liftIO $ do
         ex <- try' $ connect uri host serv
         case ex of
-            Right conn -> return conn
+            Right conn -> do
+                putStrLn $ "Connected " ++ show uri
+                return conn
             Left _ -> do
                 putStrLn $ "Retrying in " ++ show n
                 threadDelay n
-                alloc (n + 10000)
+                alloc (n + 30000)
 
     push conn evt = liftIO $ do
         ex <- try' $ publish conn evt
-        case ex of
-            Right _ -> return IOProcessing
-            Left _ -> do
-                -- resource dealloc needs to occur here via release
-                disconnect conn
-                throwIO $ ConnectionException evt
+        either (\_ -> return $ IODone Nothing (Just (PublishFailure evt)))
+               (\_ -> do
+                    putStrLn $ "Published " ++ show evt
+                    return IOProcessing)
+               ex
 
-    close conn = liftIO . void $ disconnect conn
+    close conn = liftIO $ disconnect conn >> return Nothing
 
     try' :: MonadBaseControl IO m => m a -> m (Either SomeException a)
     try' = try

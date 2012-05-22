@@ -5,7 +5,6 @@ module Main
     ) where
 
 import Control.Concurrent          (forkIO)
-import Control.Exception.Lifted    (try)
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.IO.Class      (liftIO)
 import Control.Monad.STM           (atomically)
@@ -63,13 +62,17 @@ sinkEvents :: (MonadBaseControl IO m, MonadResource m)
            => Options
            -> TBMChan Event
            -> m ()
-sinkEvents opts@Options{..} input = do
-    ex <- try $ sourceTBMChan input $$ sinkAMQP optUri optHost optService
-    case ex of
-        Right x ->
-            return x
-        Left (ConnectionException evt) -> do
-            liftIO . atomically $ unGetTBMChan input evt
-            liftIO . putStrLn $ "Failed " ++ show evt
-            sinkEvents opts input
+sinkEvents Options{..} input =
+    run $ sourceTBMChan input
+  where
+    run src = do
+        (src', ex) <- src $$+ sinkAMQP optUri optHost optService
+        case ex of
+            Nothing -> do
+                liftIO $ putStrLn "Done"
+                return ()
+            Just (PublishFailure evt) -> do
+                liftIO . atomically $ unGetTBMChan input evt
+                liftIO . putStrLn $ "Failed " ++ show evt
+                run src'
 
