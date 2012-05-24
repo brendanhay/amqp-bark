@@ -27,18 +27,20 @@ import Data.Typeable                  (Typeable)
 data Buffer a = Buffer (TBMChan a) deriving (Typeable)
 
 sourceBuffer :: MonadIO m => Buffer a -> Source m a
-sourceBuffer buf = source
+sourceBuffer buf =
+      source
     where
-        source = PipeM pull close
-        pull   = do
-             a <- liftSTM $ readBuffer buf
-             case a of
-                 Nothing -> return $ Done Nothing ()
-                 Just x  -> return $ HaveOutput source close x
-        close  = liftSTM $ closeBuffer buf
+      source = PipeM pull close
+      pull   = do
+           a <- liftSTM $ readBuffer buf
+           case a of
+               Nothing -> return $ Done Nothing ()
+               Just x  -> return $ HaveOutput source close x
+      close  = liftSTM $ closeBuffer buf
 
 sinkBuffer :: MonadIO m => Buffer a -> Sink a m ()
-sinkBuffer buf = sink
+sinkBuffer buf =
+      sink
     where
       sink       = NeedInput push (liftSTM $ closeBuffer buf)
       push input = PipeM (liftSTM $ writeBuffer buf input >> return sink)
