@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings, DeriveDataTypeable, RecordWildCards #-}
 
-module Bark.Options
-    ( Style(..)
-    , Options(..)
+module Bark.Options (
+      Options(..)
     , parseOptions
     ) where
 
@@ -17,30 +16,30 @@ import Bark.Types
 
 import qualified Data.ByteString.Char8 as B
 
-data Style = Exact | Incremental deriving (Data, Typeable, Show)
-
 data Raw = Raw
-    { rawDelim   :: String
-    , rawHost    :: String
-    , rawService :: String
-    , rawUri     :: String
-    , rawBuffer  :: Int
-    , rawBound   :: Int
-    , rawParser  :: Style
-    , rawTee     :: Bool
-    , rawStrip   :: Bool
+    { rawDelim         :: String
+    , rawHost          :: String
+    , rawService       :: String
+    , rawUri           :: String
+    , rawReadBytes     :: Int
+    , rawParseBuffer   :: Int
+    , rawDeliverBuffer :: Int
+    , rawReconnect     :: Int
+    , rawTee           :: Bool
+    , rawStrip         :: Bool
     } deriving (Data, Typeable, Show)
 
 data Options = Options
-    { optDelim   :: String
-    , optHost    :: Host
-    , optService :: Service
-    , optUri     :: URI
-    , optBuffer  :: Int
-    , optBound   :: Int
-    , optParser  :: Style
-    , optTee     :: Bool
-    , optStrip   :: Bool
+    { optDelim         :: String
+    , optHost          :: Host
+    , optService       :: Service
+    , optUri           :: URI
+    , optReadBytes     :: Int
+    , optParseBuffer   :: Int
+    , optDeliverBuffer :: Int
+    , optReconnect     :: Int
+    , optTee           :: Bool
+    , optStrip         :: Bool
     } deriving (Show)
 
 parseOptions :: IO Options
@@ -65,7 +64,7 @@ parse = do
 
 conv :: Raw -> Options
 conv Raw{..} =
-    Options rawDelim host serv uri rawBuffer rawBound rawParser rawTee rawStrip
+    Options rawDelim host serv uri rawReadBytes rawParseBuffer rawDeliverBuffer (rawReconnect * 1000) rawTee rawStrip
   where
     uri  = parseURI rawUri
     host = B.pack rawHost
@@ -79,10 +78,12 @@ version = Version
 
 validate :: Raw -> IO Raw
 validate raw@Raw{..} = do
-    exitWhen (null rawDelim)   "--delimiter cannot be blank"
-    exitWhen (null rawService) "--service cannot be blank"
-    exitWhen (rawBuffer <= 0)  "--buffer must be greater than zero"
-    exitWhen (rawBound <= 0)   "--bound must be greater than zero"
+    exitWhen (null rawDelim)         "--delimiter cannot be blank"
+    exitWhen (null rawService)       "--service cannot be blank"
+    exitWhen (rawReadBytes     <= 0) ""
+    exitWhen (rawParseBuffer   <= 0) "--parse-buffer must be greater than zero"
+    exitWhen (rawDeliverBuffer <= 0) "--deliver-buffer must be greater than zero"
+    exitWhen (rawReconnect     <= 0) ""
     addHostName raw
 
 exitWhen :: Bool -> String -> IO ()
@@ -123,21 +124,28 @@ defaults = Raw
         &= help "The amqp uri (default: guest@localhost)"
         &= explicit
 
-    , rawBuffer = 4096
-        &= name "buffer"
+    , rawReadBytes = 4096
+        &= name "read-bytes"
         &= typ  "BYTES"
         &= help "The size of the stdin buffer (default: 4096)"
         &= explicit
 
-    , rawBound = 512
-        &= name "bound"
+    , rawParseBuffer = 1024
+        &= name "parse-buffer"
         &= typ  "INT"
-        &= help "The max number of '--buffer' chunks (default: 512)"
+        &= help " (default: 1024)"
         &= explicit
 
-    , rawParser = Exact
-        &= name "parser"
-        &= help "Use exact | incremental parsing (default: exact)"
+    , rawDeliverBuffer = 512
+        &= name "deliver-buffer"
+        &= typ  "INT"
+        &= help " (default: 512)"
+        &= explicit
+
+    , rawReconnect = 500
+        &= name "reconnect-delay"
+        &= typ  "INT"
+        &= help " (default: 500)"
         &= explicit
 
     , rawStrip = False

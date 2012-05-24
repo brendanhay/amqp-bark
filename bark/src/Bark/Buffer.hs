@@ -10,7 +10,8 @@ module Bark.Buffer (
     , sinkBuffer
 
     -- * Buffer Operations
-    , newBuffer
+    , newBounded
+    , newOverflow
     , revertBuffer
 
     -- * STM
@@ -19,12 +20,12 @@ module Bark.Buffer (
     ) where
 
 import Control.Monad.IO.Class         (MonadIO, liftIO)
-import Control.Monad.STM              (STM, atomically)
+import Control.Monad.STM              (STM, atomically, retry)
 import Control.Concurrent.STM.TBMChan
 import Data.Conduit
 import Data.Typeable                  (Typeable)
 
-data Buffer a = Buffer (TBMChan a) deriving (Typeable)
+data Buffer a = Buffer Bool (TBMChan a) deriving (Typeable)
 
 sourceBuffer :: MonadIO m => Buffer a -> Source m a
 sourceBuffer buf =
@@ -46,11 +47,14 @@ sinkBuffer buf =
       push input = PipeM (liftSTM $ writeBuffer buf input >> return sink)
                          (liftSTM $ closeBuffer buf)
 
-newBuffer :: Int -> STM (Buffer a)
-newBuffer n = newTBMChan n >>= return . Buffer
+newBounded :: Int -> STM (Buffer a)
+newBounded n = newTBMChan n >>= return . Buffer False
+
+newOverflow :: Int -> STM (Buffer a)
+newOverflow n = newTBMChan n >>= return . Buffer True
 
 revertBuffer :: Buffer a -> a -> STM ()
-revertBuffer (Buffer chan) val = do
+revertBuffer (Buffer _block chan) val = do
     closed <- isClosedTBMChan chan
     if closed
         then return ()
@@ -68,18 +72,21 @@ liftSTM = liftIO . atomically
 --
 
 readBuffer :: Buffer a -> STM (Maybe a)
-readBuffer (Buffer chan) = readTBMChan chan
+readBuffer (Buffer _block chan) = readTBMChan chan
 
 writeBuffer :: Buffer a -> a -> STM ()
-writeBuffer buf@(Buffer chan) val = do
+writeBuffer buf@(Buffer block chan) val = do
     closed <- isClosedTBMChan chan
     if closed
         then return ()
         else do
             slots <- estimateFreeSlotsTBMChan chan
             if slots <= 0
-                then tryReadTBMChan chan >> writeBuffer buf val
+                then flush
                 else writeTBMChan chan val
+  where
+    flush | block     = tryReadTBMChan chan >> writeBuffer buf val
+          | otherwise = retry
 
 closeBuffer :: Buffer a -> STM ()
-closeBuffer (Buffer chan) = closeTBMChan chan
+closeBuffer (Buffer _block chan) = closeTBMChan chan

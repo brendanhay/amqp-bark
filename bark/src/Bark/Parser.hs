@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings, ExistentialQuantification #-}
 
-module Bark.Event.Exact
+module Bark.Parser
     ( conduitEvent
     ) where
 
+import Control.Applicative
 import Data.Attoparsec
 import Data.ByteString.Char8    (pack)
 import Data.ByteString.Internal (ByteString(PS), c2w, memchr, inlinePerformIO)
@@ -13,10 +14,10 @@ import Data.Monoid              (mempty)
 import Data.Word                (Word8)
 import Foreign.ForeignPtr       (withForeignPtr)
 import Foreign.Ptr              (nullPtr, plusPtr, minusPtr)
-import Bark.Event.Parser
 import Bark.Types
 
-import qualified Data.ByteString as B
+import qualified Data.Attoparsec.Char8 as A
+import qualified Data.ByteString       as B
 
 data AnyDelimiter = forall a. Delimiter a => AnyDelimiter a
 
@@ -59,6 +60,21 @@ parser = do
     cat  <- category
     body <- takeByteString
     return $! mkEvent cat sev (Payload body)
+
+severity :: Parser B.ByteString
+severity = bracketedValue <|> pure defaultSeverity
+
+category :: Parser B.ByteString
+category = bracketedValue <|> pure defaultCategory
+
+bracket :: Parser Word8
+bracket = A.char8 '['
+
+unbracket :: Parser Word8
+unbracket = A.char8 ']'
+
+bracketedValue :: Parser B.ByteString
+bracketedValue = bracket *> takeTill (== 93) <* unbracket -- 93 == ']'
 
 conduitSplit :: (Delimiter d, Monad m)
              => d
@@ -124,3 +140,4 @@ formatResult l = case l of
     []  -> ([], B.empty)
     [x] -> ([], x)
     _   -> (init l, last l)
+

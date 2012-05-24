@@ -14,20 +14,18 @@ import Bark.AMQP
 import Bark.Buffer
 import Bark.IO
 import Bark.Options
+import Bark.Parser
 import Bark.Types
 
-
 import qualified Data.ByteString.Char8  as B
-import qualified Bark.Event.Exact       as E
-import qualified Bark.Event.Incremental as I
 
 main :: IO ()
 main = do
     opts@Options{..} <- parseOptions
     print opts
 
-    raw    <- atomically $ newBuffer optBound
-    events <- atomically $ newBuffer optBound
+    raw    <- atomically $ newBounded optParseBuffer
+    events <- atomically $ newOverflow optDeliverBuffer
 
     _ <- forkIO . runResourceT $ sinkEvents opts events
     _ <- forkIO . runResourceT $ conduitParser opts raw events
@@ -43,7 +41,7 @@ sourceStdin :: (MonadBaseControl IO m, MonadResource m)
             -> Buffer B.ByteString
             -> m ()
 sourceStdin Options{..} output =
-    sourceHandle stdin optBuffer $$ sinkBuffer output
+    sourceHandle stdin optReadBytes $$ sinkBuffer output
 
 conduitParser :: (MonadBaseControl IO m, MonadResource m)
               => Options
@@ -51,13 +49,10 @@ conduitParser :: (MonadBaseControl IO m, MonadResource m)
               -> Buffer Event
               -> m ()
 conduitParser Options{..} input output =
-    sourceBuffer input $= tee (parser optDelim optStrip) $$ sinkBuffer output
+    sourceBuffer input $= tee (conduitEvent optDelim optStrip) $$ sinkBuffer output
   where
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
-    parser = case optParser of
-        Exact       -> E.conduitEvent
-        Incremental -> I.conduitEvent
 
 sinkEvents :: MonadIO m
            => Options
@@ -82,5 +77,5 @@ sinkEvents Options{..} input =
         failure ex = do
             liftIO $ do
                 print ex
-                threadDelay 600000
+                threadDelay optReconnect
             alloc
