@@ -21,6 +21,7 @@ module Bark.Buffer (
     , atomically
     ) where
 
+import Control.Monad                  (liftM, unless)
 import Control.Monad.IO.Class         (MonadIO, liftIO)
 import Control.Monad.STM              (STM, atomically, retry)
 import Control.Concurrent.STM.TBMChan
@@ -30,10 +31,10 @@ import Data.Typeable                  (Typeable)
 data Buffer a = Buffer Bool (TBMChan a) deriving (Typeable)
 
 newBounded :: Int -> STM (Buffer a)
-newBounded n = newTBMChan n >>= return . Buffer False
+newBounded = liftM (Buffer False) . newTBMChan
 
 newOverflow :: Int -> STM (Buffer a)
-newOverflow n = newTBMChan n >>= return . Buffer True
+newOverflow = liftM (Buffer True) . newTBMChan
 
 sourceBuffer :: MonadIO m => Buffer a -> Source m a
 sourceBuffer buf =
@@ -58,13 +59,9 @@ sinkBuffer buf =
 revertBuffer :: Buffer a -> a -> STM ()
 revertBuffer (Buffer _block chan) val = do
     closed <- isClosedTBMChan chan
-    if closed
-        then return ()
-        else do
-            slots <- estimateFreeSlotsTBMChan chan
-            if slots <= 0
-                then return ()
-                else unGetTBMChan chan val
+    unless closed $ do
+        slots <- estimateFreeSlotsTBMChan chan
+        unless (slots <= 0) $ unGetTBMChan chan val
 
 liftSTM :: forall (m :: * -> *) a. MonadIO m => STM a -> m a
 liftSTM = liftIO . atomically
@@ -79,13 +76,11 @@ readBuffer (Buffer _block chan) = readTBMChan chan
 writeBuffer :: Buffer a -> a -> STM ()
 writeBuffer buf@(Buffer block chan) val = do
     closed <- isClosedTBMChan chan
-    if closed
-        then return ()
-        else do
-            slots <- estimateFreeSlotsTBMChan chan
-            if slots <= 0
-                then flush
-                else writeTBMChan chan val
+    unless closed $ do
+        slots <- estimateFreeSlotsTBMChan chan
+        if slots <= 0
+            then flush
+            else writeTBMChan chan val
   where
     flush | block     = tryReadTBMChan chan >> writeBuffer buf val
           | otherwise = retry
