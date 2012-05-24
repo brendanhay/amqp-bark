@@ -2,6 +2,7 @@ module Bark.Conduit
     ( sourceHandle
     , conduitHandle
     , conduitShow
+    -- , conduitPublish
     ) where
 
 import Control.Monad.IO.Class (liftIO)

@@ -1,23 +1,25 @@
 {-# LANGUAGE DeriveDataTypeable, RecordWildCards, FlexibleContexts, RankNTypes #-}
 
-module Bark.AMQP
-    ( sinkAMQP
-    , PublishFailure(..)
+module Bark.AMQP (
+    -- * Types
+      PublishFailure(..)
 
-    -- * Network.AMQP re-exports
-    , AMQPException(..)
+    -- * Conduits
+    , sinkAMQP
+
+    -- * AMQP Connection
+    , connect
+    , disconnect
     ) where
 
-import Control.Concurrent         (threadDelay)
-import Control.Exception          (SomeException)
-import Control.Exception.Lifted   (try)
-import Control.Monad.IO.Class     (MonadIO, liftIO)
-import Data.ByteString.Lazy.Char8 (fromChunks)
+import Control.Monad.IO.Class      (MonadIO)
+import Data.ByteString.Lazy.Char8  (fromChunks)
 import Data.Conduit
 import Data.Hashable
 import Network.AMQP
 import Bark.Types
-import Control.Monad.Trans.Control (MonadBaseControl)
+import Bark.Exception
+
 import qualified Data.ByteString.Char8 as C
 import qualified Data.HashTable.IO     as H
 
@@ -40,37 +42,19 @@ data AMQPConn = AMQPConn
 
 data PublishFailure = PublishFailure Event deriving (Show, Ord, Eq)
 
-sinkAMQP :: (MonadBaseControl IO m, MonadResource m)
-         => URI
-         -> Host
-         -> Service
+sinkAMQP :: MonadIO m
+         => AMQPConn
          -> Sink Event m (Maybe PublishFailure)
-sinkAMQP uri host serv =
-    sinkIO (alloc 60000) disconnect push close
+sinkAMQP conn =
+    NeedInput push close
   where
-    alloc n = liftIO $ do
-        ex <- try' $ connect uri host serv
-        case ex of
-            Right conn -> do
-                putStrLn $ "Connected " ++ show uri
-                return conn
-            Left _ -> do
-                putStrLn $ "Retrying in " ++ show n
-                threadDelay n
-                alloc (n + 30000)
+    push evt = PipeM (attempt >>= either failure success) (return Nothing)
+      where
+        attempt   = liftTry $ publish conn evt
+        failure _ = return $ Done Nothing (Just (PublishFailure evt))
+        success _ = return $ NeedInput push close
 
-    push conn evt = liftIO $ do
-        ex <- try' $ publish conn evt
-        either (\_ -> return $ IODone Nothing (Just (PublishFailure evt)))
-               (\_ -> do
-                    putStrLn $ "Published " ++ show evt
-                    return IOProcessing)
-               ex
-
-    close conn = liftIO $ disconnect conn >> return Nothing
-
-    try' :: MonadBaseControl IO m => m a -> m (Either SomeException a)
-    try' = try
+    close = return Nothing
 
 --
 -- Internal

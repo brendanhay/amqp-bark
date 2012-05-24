@@ -50,7 +50,7 @@ executable bark
                   , resourcet
                   , conduit
                   , stm
-                  , stm-conduit
+                  , stm-chans
                   , attoparsec
                   , attoparsec-conduit
                   , cmdargs

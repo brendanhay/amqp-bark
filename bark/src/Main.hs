@@ -5,17 +5,17 @@ module Main
     ( main
     ) where
 
-import Control.Concurrent          (forkIO)
+import Control.Concurrent          (forkIO, threadDelay)
 import Control.Monad.Trans.Control (MonadBaseControl)
-import Control.Monad.IO.Class      (liftIO)
-import Control.Monad.STM           (atomically)
+import Control.Monad.IO.Class      (MonadIO, liftIO)
 import Data.Conduit
-import Data.Conduit.TMChan
 import System.IO                   (stdin)
 import Bark.AMQP
 import Bark.Conduit
 import Bark.Options
 import Bark.Types
+import Bark.Exception
+import Bark.Buffer
 
 import qualified Data.ByteString.Char8  as B
 import qualified Bark.Event.Exact       as E
@@ -26,8 +26,8 @@ main = do
     opts@Options{..} <- parseOptions
     print opts
 
-    raw    <- atomically $ newTBMChan optBound
-    events <- atomically $ newTBMChan optBound
+    raw    <- atomically $ newBuffer optBound
+    events <- atomically $ newBuffer optBound
 
     _ <- forkIO . runResourceT $ sinkEvents opts events
     _ <- forkIO . runResourceT $ conduitParser opts raw events
@@ -40,18 +40,18 @@ main = do
 
 sourceStdin :: (MonadBaseControl IO m, MonadResource m)
             => Options
-            -> TBMChan B.ByteString
+            -> Buffer B.ByteString
             -> m ()
 sourceStdin Options{..} output =
-    sourceHandle stdin optBuffer $$ sinkTBMChan output
+    sourceHandle stdin optBuffer $$ sinkBuffer output
 
 conduitParser :: (MonadBaseControl IO m, MonadResource m)
-             => Options
-             -> TBMChan B.ByteString
-             -> TBMChan Event
-             -> m ()
+              => Options
+              -> Buffer B.ByteString
+              -> Buffer Event
+              -> m ()
 conduitParser Options{..} input output =
-    sourceTBMChan input $= tee (parser optDelim optStrip) $$ sinkTBMChan output
+    sourceBuffer input $= tee (parser optDelim optStrip) $$ sinkBuffer output
   where
     tee | optTee    = (=$= conduitShow)
         | otherwise = id
@@ -59,21 +59,28 @@ conduitParser Options{..} input output =
         Exact       -> E.conduitEvent
         Incremental -> I.conduitEvent
 
-sinkEvents :: (MonadBaseControl IO m, MonadResource m)
+sinkEvents :: MonadIO m
            => Options
-           -> TBMChan Event
+           -> Buffer Event
            -> m ()
 sinkEvents Options{..} input =
-    run $ sourceTBMChan input
+    sink $ sourceBuffer input
   where
-    run src = do
-        (src', ex) <- src $$+ sinkAMQP optUri optHost optService
-        case ex of
-            Nothing -> do
-                liftIO $ putStrLn "Done"
-                return ()
+    sink src = do
+        conn        <- alloc
+        (src', res) <- src $$+ sinkAMQP conn
+        case res of
+            Nothing -> return ()
             Just (PublishFailure evt) -> do
-                liftIO . atomically $ unGetTBMChan input evt
-                liftIO . putStrLn $ "Failed " ++ show evt
-                run src'
+                liftIO $ disconnect conn
+                liftSTM $ revertBuffer input evt
+                sink src'
 
+    alloc = attempt >>= either failure return
+      where
+        attempt    = liftTry $ connect optUri optHost optService
+        failure ex = do
+            liftIO $ do
+                print ex
+                threadDelay 600000
+            alloc
