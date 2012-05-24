@@ -1,13 +1,18 @@
-module Bark.Conduit
-    ( sourceHandle
+module Bark.IO (
+    -- * Conduits
+      sourceHandle
     , conduitHandle
     , conduitShow
-    -- , conduitPublish
+
+    -- * Exceptions
+    , liftTry
     ) where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Exception        (SomeException)
+import Control.Exception.Lifted (try)
+import Control.Monad.IO.Class   (MonadIO, liftIO)
 import Data.Conduit
-import System.IO              (Handle, stdout)
+import System.IO                (Handle, stdout)
 
 import qualified Data.ByteString as B
 
@@ -43,3 +48,6 @@ conduitShow =
     push _ input = do
         liftIO $ print input
         return $ IOProducing [input]
+
+liftTry :: MonadIO m => IO a -> m (Either SomeException a)
+liftTry = liftIO . try

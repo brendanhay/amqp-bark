@@ -2,7 +2,7 @@
 
 module Bark.AMQP (
     -- * Types
-      PublishFailure(..)
+      PublishFailure()
 
     -- * Conduits
     , sinkAMQP
@@ -18,7 +18,7 @@ import Data.Conduit
 import Data.Hashable
 import Network.AMQP
 import Bark.Types
-import Bark.Exception
+import Bark.IO
 
 import qualified Data.ByteString.Char8 as C
 import qualified Data.HashTable.IO     as H

@@ -12,10 +12,9 @@ import Data.Conduit
 import System.IO                   (stdin)
 import Bark.AMQP
 import Bark.Buffer
-import Bark.Conduit
+import Bark.IO
 import Bark.Options
 import Bark.Types
-import Bark.Exception
 
 
 import qualified Data.ByteString.Char8  as B
