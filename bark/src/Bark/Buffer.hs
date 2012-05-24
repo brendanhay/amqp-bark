@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleContexts, KindSignatures, RankNTypes #-}
+{-# LANGUAGE DeriveDataTypeable, FlexibleContexts, KindSignatures,
+    RankNTypes #-}
 
 module Bark.Buffer (
     -- * Exported Types
@@ -39,11 +40,9 @@ sourceBuffer buf = source
 sinkBuffer :: MonadIO m => Buffer a -> Sink a m ()
 sinkBuffer buf = sink
     where
-      sink       = NeedInput push close
-      push input = PipeM (liftSTM $ writeBuffer buf input >> return sink) (liftSTM $ closeBuffer buf)
-
-
-      close      = liftSTM $ closeBuffer buf
+      sink       = NeedInput push (liftSTM $ closeBuffer buf)
+      push input = PipeM (liftSTM $ writeBuffer buf input >> return sink)
+                         (liftSTM $ closeBuffer buf)
 
 newBuffer :: Int -> STM (Buffer a)
 newBuffer n = newTBMChan n >>= return . Buffer
