@@ -5,13 +5,15 @@ module Bark.Buffer (
     -- * Exported Types
       Buffer()
 
+    -- * Constructors
+    , newBounded
+    , newOverflow
+
     -- * Conduits
     , sourceBuffer
     , sinkBuffer
 
     -- * Buffer Operations
-    , newBounded
-    , newOverflow
     , revertBuffer
 
     -- * STM
@@ -26,6 +28,12 @@ import Data.Conduit
 import Data.Typeable                  (Typeable)
 
 data Buffer a = Buffer Bool (TBMChan a) deriving (Typeable)
+
+newBounded :: Int -> STM (Buffer a)
+newBounded n = newTBMChan n >>= return . Buffer False
+
+newOverflow :: Int -> STM (Buffer a)
+newOverflow n = newTBMChan n >>= return . Buffer True
 
 sourceBuffer :: MonadIO m => Buffer a -> Source m a
 sourceBuffer buf =
@@ -46,12 +54,6 @@ sinkBuffer buf =
       sink       = NeedInput push (liftSTM $ closeBuffer buf)
       push input = PipeM (liftSTM $ writeBuffer buf input >> return sink)
                          (liftSTM $ closeBuffer buf)
-
-newBounded :: Int -> STM (Buffer a)
-newBounded n = newTBMChan n >>= return . Buffer False
-
-newOverflow :: Int -> STM (Buffer a)
-newOverflow n = newTBMChan n >>= return . Buffer True
 
 revertBuffer :: Buffer a -> a -> STM ()
 revertBuffer (Buffer _block chan) val = do
