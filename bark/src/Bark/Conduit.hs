@@ -15,12 +15,12 @@ sourceHandle :: MonadResource m
              => Handle
              -> Int
              -> Source m B.ByteString
-sourceHandle handle buffer =
+sourceHandle handle limit =
     source
   where
     source = PipeM pull close
     pull = do
-        bstr <- liftIO (B.hGetSome handle buffer)
+        bstr <- liftIO (B.hGetSome handle limit)
         if B.null bstr
             then return $ Done Nothing ()
             else return $ HaveOutput source close bstr

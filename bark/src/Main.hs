@@ -11,11 +11,12 @@ import Control.Monad.IO.Class      (MonadIO, liftIO)
 import Data.Conduit
 import System.IO                   (stdin)
 import Bark.AMQP
+import Bark.Buffer
 import Bark.Conduit
 import Bark.Options
 import Bark.Types
 import Bark.Exception
-import Bark.Buffer
+
 
 import qualified Data.ByteString.Char8  as B
 import qualified Bark.Event.Exact       as E
