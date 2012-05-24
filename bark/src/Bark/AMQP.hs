@@ -2,7 +2,7 @@
 
 module Bark.AMQP (
     -- * Types
-      PublishFailure()
+      PublishFailure(..)
 
     -- * Conduits
     , sinkAMQP
