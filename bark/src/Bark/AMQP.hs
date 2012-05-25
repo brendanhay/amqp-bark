@@ -14,7 +14,7 @@ module Bark.AMQP (
     ) where
 
 import Control.Concurrent         (threadDelay)
-import Control.Monad.IO.Class     (MonadIO, liftIO)
+import Control.Monad.IO.Class     (MonadIO)
 import Data.ByteString.Lazy.Char8 (fromChunks)
 import Data.Conduit
 import Data.Hashable
@@ -76,19 +76,21 @@ queue name = newQueue
     }
 
 connect :: URI -> Int -> Host -> Service -> IO AMQPConn
-connect URI{..} delay host serv =
+connect uri@URI{..} delay host serv =
     run
   where
     run = attempt >>= either failure return
       where
         attempt = liftTry $ do
+            putStrLn "Connecting.."
             conn  <- openConnection uriHost uriVHost uriUser uriPass
             chan  <- openChannel conn
             cache <- H.new
             _     <- declareExchange chan $ exchange serv
+            putStrLn $ "Connected to " ++ show uri
             return $ AMQPConn host serv conn chan cache
 
-        failure _ = liftIO $ threadDelay delay >> run
+        failure _ = threadDelay delay >> run
 
 disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn
@@ -114,6 +116,7 @@ bind AMQPConn{..} evt idx = do
 publish :: AMQPConn -> Event -> IO ()
 publish conn@AMQPConn{..} msg = do
     Binding{..} <- declare conn msg
+    putStrLn "Publishing.."
     publishMsg amqpChan bndExchange bndExplicit $ payload msg
 
 payload :: Event -> Message
