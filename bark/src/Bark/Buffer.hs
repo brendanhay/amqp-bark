@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleContexts, KindSignatures,
-    RankNTypes #-}
+    RankNTypes, TypeSynonymInstances #-}
 
 module Bark.Buffer (
     -- * Exported Types
-      Buffer()
+      Buffer(..)
+    , Unbounded
+    , Overflow
 
     -- * Constructors
     , newUnbounded
@@ -13,31 +15,59 @@ module Bark.Buffer (
     , sourceBuffer
     , sinkBuffer
 
-    -- * Buffer Operations
-    , revertBuffer
-
     -- * STM
     , liftSTM
     , atomically
     ) where
 
-import Control.Monad                  (liftM, unless)
+import Control.Monad                  (unless)
 import Control.Monad.IO.Class         (MonadIO, liftIO)
 import Control.Monad.STM              (STM, atomically)
 import Control.Concurrent.STM.TMChan
 import Control.Concurrent.STM.TBMChan
 import Data.Conduit
-import Data.Typeable                  (Typeable)
 
-data Buffer a = Unbounded (TMChan a) | Overflow (TBMChan a) deriving (Typeable)
+type Unbounded = TMChan
+type Overflow  = TBMChan
 
-newUnbounded :: STM (Buffer a)
-newUnbounded = liftM Unbounded newTMChan
+class Buffer b where
+    readBuffer   :: b a -> STM (Maybe a)
+    writeBuffer  :: b a -> a -> STM ()
+    revertBuffer :: b a -> a -> STM ()
+    closeBuffer  :: b a -> STM ()
 
-newOverflow :: Int -> STM (Buffer a)
-newOverflow = liftM Overflow . newTBMChan
+instance Buffer Unbounded where
+    readBuffer   = readTMChan
+    writeBuffer  = writeTMChan
+    revertBuffer = unGetTMChan
+    closeBuffer  = closeTMChan
 
-sourceBuffer :: MonadIO m => Buffer a -> Source m a
+instance Buffer Overflow where
+    readBuffer = readTBMChan
+
+    writeBuffer c v = do
+        p <- isClosedTBMChan c
+        unless p $ do
+            n <- estimateFreeSlotsTBMChan c
+            if n <= 0
+                then tryReadTBMChan c >> writeBuffer c v
+                else writeTBMChan c v
+
+    revertBuffer c v = do
+        b <- isClosedTBMChan c
+        unless b $ do
+            n <- estimateFreeSlotsTBMChan c
+            unless (n <= 0) $ unGetTBMChan c v
+
+    closeBuffer = closeTBMChan
+
+newUnbounded :: STM (Unbounded a)
+newUnbounded = newTMChan
+
+newOverflow :: Int -> STM (Overflow a)
+newOverflow = newTBMChan
+
+sourceBuffer :: (MonadIO m, Buffer b) => b a -> Source m a
 sourceBuffer buf =
       source
     where
@@ -49,7 +79,7 @@ sourceBuffer buf =
                Just x  -> return $ HaveOutput source close x
       close  = liftSTM $ closeBuffer buf
 
-sinkBuffer :: MonadIO m => Buffer a -> Sink a m ()
+sinkBuffer :: (MonadIO m, Buffer b) => b a -> Sink a m ()
 sinkBuffer buf =
       sink
     where
@@ -57,35 +87,5 @@ sinkBuffer buf =
       push input = PipeM (liftSTM $ writeBuffer buf input >> return sink)
                          (liftSTM $ closeBuffer buf)
 
-revertBuffer :: Buffer a -> a -> STM ()
-revertBuffer (Unbounded chan) val = unGetTMChan chan val
-revertBuffer (Overflow chan) val  = do
-    closed <- isClosedTBMChan chan
-    unless closed $ do
-        slots <- estimateFreeSlotsTBMChan chan
-        unless (slots <= 0) $ unGetTBMChan chan val
-
 liftSTM :: forall (m :: * -> *) a. MonadIO m => STM a -> m a
 liftSTM = liftIO . atomically
-
---
--- Internal
---
-
-readBuffer :: Buffer a -> STM (Maybe a)
-readBuffer (Unbounded chan) = readTMChan chan
-readBuffer (Overflow chan)  = readTBMChan chan
-
-writeBuffer :: Buffer a -> a -> STM ()
-writeBuffer (Unbounded chan) val    = writeTMChan chan val
-writeBuffer buf@(Overflow chan) val = do
-    closed <- isClosedTBMChan chan
-    unless closed $ do
-        slots <- estimateFreeSlotsTBMChan chan
-        if slots <= 0
-            then tryReadTBMChan chan >> writeBuffer buf val
-            else writeTBMChan chan val
-
-closeBuffer :: Buffer a -> STM ()
-closeBuffer (Unbounded chan) = closeTMChan chan
-closeBuffer (Overflow chan)  = closeTBMChan chan

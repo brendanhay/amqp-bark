@@ -70,7 +70,7 @@ exchange serv = newExchange
 
 queue :: String -> QueueOpts
 queue name = newQueue
-    { queueName    = bndQueue
+    { queueName    = name
     , queueDurable = True
     }
 

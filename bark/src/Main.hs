@@ -37,15 +37,15 @@ main = do
 
 sourceStdin :: (MonadResource m, MonadIO m)
             => Options
-            -> Buffer B.ByteString
+            -> Unbounded B.ByteString
             -> m ()
 sourceStdin Options{..} output =
     sourceHandle stdin optReadBytes $$ sinkBuffer output
 
 conduitParser :: (MonadResource m, MonadIO m)
               => Options
-              -> Buffer B.ByteString
-              -> Buffer Event
+              -> Unbounded B.ByteString
+              -> Overflow Event
               -> m ()
 conduitParser Options{..} input output =
     sourceBuffer input $= tee (conduitEvent optDelim optStrip) $$ sinkBuffer output
@@ -55,7 +55,7 @@ conduitParser Options{..} input output =
 
 sinkEvents :: MonadIO m
            => Options
-           -> Buffer Event
+           -> Overflow Event
            -> m ()
 sinkEvents Options{..} input =
     sink $ sourceBuffer input
