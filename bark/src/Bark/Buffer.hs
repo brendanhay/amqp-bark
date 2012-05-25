@@ -36,13 +36,13 @@ class Buffer b where
     revertBuffer :: b a -> a -> STM ()
     closeBuffer  :: b a -> STM ()
 
-instance Buffer Unbounded where
+instance Buffer TMChan where
     readBuffer   = readTMChan
     writeBuffer  = writeTMChan
     revertBuffer = unGetTMChan
     closeBuffer  = closeTMChan
 
-instance Buffer Overflow where
+instance Buffer TBMChan where
     readBuffer = readTBMChan
 
     writeBuffer c v = do
