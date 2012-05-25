@@ -21,10 +21,10 @@ data Raw = Raw
     , rawHost          :: String
     , rawService       :: String
     , rawUri           :: String
+    , rawReconnect     :: Int
     , rawReadBytes     :: Int
     , rawParseBuffer   :: Int
     , rawDeliverBuffer :: Int
-    , rawReconnect     :: Int
     , rawTee           :: Bool
     , rawStrip         :: Bool
     } deriving (Data, Typeable, Show)
@@ -34,10 +34,10 @@ data Options = Options
     , optHost          :: Host
     , optService       :: Service
     , optUri           :: URI
+    , optReconnect     :: Int
     , optReadBytes     :: Int
     , optParseBuffer   :: Int
     , optDeliverBuffer :: Int
-    , optReconnect     :: Int
     , optTee           :: Bool
     , optStrip         :: Bool
     } deriving (Show)
@@ -63,12 +63,17 @@ parse = do
         &= program ("Usage: " ++ app)
 
 conv :: Raw -> Options
-conv Raw{..} =
-    Options rawDelim host serv uri rawReadBytes rawParseBuffer rawDeliverBuffer (rawReconnect * 1000) rawTee rawStrip
-  where
-    uri  = parseURI rawUri
-    host = B.pack rawHost
-    serv = B.pack rawService
+conv Raw{..} = Options
+    rawDelim
+    (B.pack rawHost)
+    (B.pack rawService)
+    (parseURI rawUri)
+    (rawReconnect * 1000)
+    rawReadBytes
+    rawParseBuffer
+    rawDeliverBuffer
+    rawTee
+    rawStrip
 
 version :: Version
 version = Version
@@ -124,6 +129,12 @@ defaults = Raw
         &= help "The amqp uri (default: guest@localhost)"
         &= explicit
 
+    , rawReconnect = 500
+        &= name "reconnect-delay"
+        &= typ  "INT"
+        &= help " (default: 500)"
+        &= explicit
+
     , rawReadBytes = 4096
         &= name "read-bytes"
         &= typ  "BYTES"
@@ -140,12 +151,6 @@ defaults = Raw
         &= name "deliver-buffer"
         &= typ  "INT"
         &= help " (default: 512)"
-        &= explicit
-
-    , rawReconnect = 500
-        &= name "reconnect-delay"
-        &= typ  "INT"
-        &= help " (default: 500)"
         &= explicit
 
     , rawStrip = False
