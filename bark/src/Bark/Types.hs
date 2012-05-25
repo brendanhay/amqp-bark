@@ -18,8 +18,7 @@ module Bark.Types (
     , defaultSeverity
 
     -- * Constructors
-    , mkBinding
-    , mkEvent
+    , newBinding
     , fromEvent
     , parseURI
 
@@ -51,8 +50,7 @@ data Binding = Binding
 data Body = Payload B.ByteString | Error B.ByteString deriving (Ord, Eq, Show)
 
 data Event = Event
-    { evtRetries  :: !Int
-    , evtCategory :: !Category
+    { evtCategory :: !Category
     , evtSeverity :: !Severity
     , evtBody     :: !Body
     } deriving (Ord, Eq, Show)
@@ -78,12 +76,12 @@ defaultSeverity = "INFO"
 -- Constructors
 --
 
-mkBinding :: Host
+newBinding :: Host
           -> Service
           -> Category
           -> Severity
           -> Binding
-mkBinding host serv cat sev =
+newBinding host serv cat sev =
     Binding exchange queue publish declare
   where
     exchange = B.unpack serv
@@ -91,11 +89,8 @@ mkBinding host serv cat sev =
     publish  = publishKey host cat sev
     declare  = declareKey cat sev
 
-mkEvent :: Category -> Severity -> Body -> Event
-mkEvent = Event 0
-
 fromEvent :: Event -> Host -> Service -> Binding
-fromEvent Event{..} host serv = mkBinding host serv evtCategory evtSeverity
+fromEvent Event{..} host serv = newBinding host serv evtCategory evtSeverity
 
 parseURI :: String -> URI
 parseURI = conv . fromJust . U.parseURI

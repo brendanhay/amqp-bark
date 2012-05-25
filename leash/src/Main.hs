@@ -28,4 +28,4 @@ main = do
 --
 
 recv :: (Message, Envelope) -> IO ()
-recv (msg, _) = putStrLn $ "line: " ++ L.unpack (msgBody msg)
+recv (msg, _) = putStrLn $ L.unpack (msgBody msg)
