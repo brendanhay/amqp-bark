@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable, RecordWildCards, FlexibleContexts, RankNTypes #-}
+{-# LANGUAGE DeriveDataTypeable, RecordWildCards, FlexibleContexts,
+    RankNTypes #-}
 
 module Bark.AMQP (
     -- * Types

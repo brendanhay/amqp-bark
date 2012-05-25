@@ -1,3 +1,3 @@
 #!/bin/sh
 
-./script/sample.sh | ./cabal-dev/bin/bark --service=prof --tee --strip
+./script/sample.sh | ./cabal-dev/bin/bark --service=prof --strip
