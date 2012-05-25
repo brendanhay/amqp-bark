@@ -5,8 +5,7 @@ module Main
     ( main
     ) where
 
-import Control.Concurrent          (forkIO, threadDelay)
-import Control.Monad.Trans.Control (MonadBaseControl)
+import Control.Concurrent          (forkIO)
 import Control.Monad.IO.Class      (MonadIO, liftIO)
 import Data.Conduit
 import System.IO                   (stdin)
@@ -36,14 +35,14 @@ main = do
 -- Internal
 --
 
-sourceStdin :: (MonadBaseControl IO m, MonadResource m)
+sourceStdin :: (MonadResource m, MonadIO m)
             => Options
             -> Buffer B.ByteString
             -> m ()
 sourceStdin Options{..} output =
     sourceHandle stdin optReadBytes $$ sinkBuffer output
 
-conduitParser :: (MonadBaseControl IO m, MonadResource m)
+conduitParser :: (MonadResource m, MonadIO m)
               => Options
               -> Buffer B.ByteString
               -> Buffer Event
@@ -62,7 +61,7 @@ sinkEvents Options{..} input =
     sink $ sourceBuffer input
   where
     sink src = do
-        conn        <- alloc
+        conn        <- liftIO $ connect optUri optReconnect optHost optService
         (src', res) <- src $$+ sinkAMQP conn
         case res of
             Nothing -> return ()
@@ -70,12 +69,3 @@ sinkEvents Options{..} input =
                 liftIO $ disconnect conn
                 liftSTM $ revertBuffer input evt
                 sink src'
-
-    alloc = attempt >>= either failure return
-      where
-        attempt    = liftTry $ connect optUri optHost optService
-        failure ex = do
-            liftIO $ do
-                print ex
-                threadDelay optReconnect
-            alloc

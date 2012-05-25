@@ -12,8 +12,9 @@ module Bark.AMQP (
     , disconnect
     ) where
 
-import Control.Monad.IO.Class      (MonadIO)
-import Data.ByteString.Lazy.Char8  (fromChunks)
+import Control.Concurrent         (threadDelay)
+import Control.Monad.IO.Class     (MonadIO, liftIO)
+import Data.ByteString.Lazy.Char8 (fromChunks)
 import Data.Conduit
 import Data.Hashable
 import Network.AMQP
@@ -60,17 +61,25 @@ sinkAMQP conn =
 -- Internal
 --
 
-connect :: URI -> Host -> Service -> IO AMQPConn
-connect URI{..} host serv = do
-    conn  <- openConnection uriHost uriVHost uriUser uriPass
-    chan  <- openChannel conn
-    cache <- H.new
-    _     <- declareExchange chan opts
-    return $ AMQPConn host serv conn chan cache
+exchange :: Service -> ExchangeOpts
+exchange serv = newExchange { exchangeName    = C.unpack serv
+                            , exchangeType    = "topic"
+                            , exchangeDurable = True }
+
+connect :: URI -> Int -> Host -> Service -> IO AMQPConn
+connect URI{..} delay host serv =
+    run
   where
-    opts = newExchange { exchangeName    = C.unpack serv
-                       , exchangeType    = "topic"
-                       , exchangeDurable = True }
+    run = attempt >>= either failure return
+      where
+        attempt = liftTry $ do
+            conn  <- openConnection uriHost uriVHost uriUser uriPass
+            chan  <- openChannel conn
+            cache <- H.new
+            _     <- declareExchange chan $ exchange serv
+            return $ AMQPConn host serv conn chan cache
+
+        failure _ = liftIO $ threadDelay delay >> run
 
 disconnect :: AMQPConn -> IO ()
 disconnect = closeConnection . amqpConn

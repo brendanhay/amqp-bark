@@ -35,7 +35,7 @@ newUnbounded :: STM (Buffer a)
 newUnbounded = liftM Unbounded newTMChan
 
 newOverflow :: Int -> STM (Buffer a)
-newOverflow = liftM (Overflow) . newTBMChan
+newOverflow = liftM Overflow . newTBMChan
 
 sourceBuffer :: MonadIO m => Buffer a -> Source m a
 sourceBuffer buf =
