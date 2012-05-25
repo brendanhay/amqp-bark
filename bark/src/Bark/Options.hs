@@ -23,7 +23,6 @@ data Raw = Raw
     , rawUri           :: String
     , rawReconnect     :: Int
     , rawReadBytes     :: Int
-    , rawParseBuffer   :: Int
     , rawDeliverBuffer :: Int
     , rawTee           :: Bool
     , rawStrip         :: Bool
@@ -36,7 +35,6 @@ data Options = Options
     , optUri           :: URI
     , optReconnect     :: Int
     , optReadBytes     :: Int
-    , optParseBuffer   :: Int
     , optDeliverBuffer :: Int
     , optTee           :: Bool
     , optStrip         :: Bool
@@ -70,7 +68,6 @@ conv Raw{..} = Options
     (parseURI rawUri)
     (rawReconnect * 1000)
     rawReadBytes
-    rawParseBuffer
     rawDeliverBuffer
     rawTee
     rawStrip
@@ -85,8 +82,7 @@ validate :: Raw -> IO Raw
 validate raw@Raw{..} = do
     exitWhen (null rawDelim)         "--delimiter cannot be blank"
     exitWhen (null rawService)       "--service cannot be blank"
-    exitWhen (rawReadBytes     <= 0) ""
-    exitWhen (rawParseBuffer   <= 0) "--parse-buffer must be greater than zero"
+    exitWhen (rawReadBytes <= 0)     "--read-bytes must be greater than zero"
     exitWhen (rawDeliverBuffer <= 0) "--deliver-buffer must be greater than zero"
     exitWhen (rawReconnect     <= 0) ""
     addHostName raw
@@ -108,49 +104,43 @@ defaults = Raw
     { rawDelim = "\n"
         &= name "delimiter"
         &= typ  "STRING"
-        &= help "A byte or string denoting output (default: \\n)"
+        &= help "A byte or string delimiting output (default: \\n)"
         &= explicit
 
     , rawService = ""
         &= name "service"
         &= typ  "SERVICE"
-        &= help "The application service name (required)"
+        &= help "Application service name (required)"
         &= explicit
 
     , rawHost = ""
         &= name "hostname"
         &= typ  "HOSTNAME"
-        &= help "The local hostname (default: `hostname`)"
+        &= help "Overrideable local hostname (default: `hostname`)"
         &= explicit
 
     , rawUri = "amqp://guest:guest@127.0.0.1/"
         &= name "uri"
         &= typ  "URI"
-        &= help "The amqp uri (default: guest@localhost)"
+        &= help "AMQP URI where events will be published (default: guest@localhost)"
         &= explicit
 
     , rawReconnect = 500
         &= name "reconnect-delay"
         &= typ  "INT"
-        &= help " (default: 500)"
+        &= help "Number of milliseconds to delay before attempting a reconnect (default: 500)"
         &= explicit
 
     , rawReadBytes = 4096
         &= name "read-bytes"
         &= typ  "BYTES"
-        &= help "The size of the stdin buffer (default: 4096)"
+        &= help "Size of the stdin buffer (default: 4096)"
         &= explicit
 
-    , rawParseBuffer = 1024
-        &= name "parse-buffer"
-        &= typ  "INT"
-        &= help " (default: 1024)"
-        &= explicit
-
-    , rawDeliverBuffer = 512
+    , rawDeliverBuffer = 2048
         &= name "deliver-buffer"
         &= typ  "INT"
-        &= help " (default: 512)"
+        &= help "Number of parsed events to buffer during publish (default: 2048)"
         &= explicit
 
     , rawStrip = False

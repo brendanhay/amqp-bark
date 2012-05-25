@@ -6,7 +6,7 @@ module Bark.Buffer (
       Buffer()
 
     -- * Constructors
-    , newBounded
+    , newUnbounded
     , newOverflow
 
     -- * Conduits
@@ -23,18 +23,19 @@ module Bark.Buffer (
 
 import Control.Monad                  (liftM, unless)
 import Control.Monad.IO.Class         (MonadIO, liftIO)
-import Control.Monad.STM              (STM, atomically, retry)
+import Control.Monad.STM              (STM, atomically)
+import Control.Concurrent.STM.TMChan
 import Control.Concurrent.STM.TBMChan
 import Data.Conduit
 import Data.Typeable                  (Typeable)
 
-data Buffer a = Buffer Bool (TBMChan a) deriving (Typeable)
+data Buffer a = Unbounded (TMChan a) | Overflow (TBMChan a) deriving (Typeable)
 
-newBounded :: Int -> STM (Buffer a)
-newBounded = liftM (Buffer False) . newTBMChan
+newUnbounded :: STM (Buffer a)
+newUnbounded = liftM Unbounded newTMChan
 
 newOverflow :: Int -> STM (Buffer a)
-newOverflow = liftM (Buffer True) . newTBMChan
+newOverflow = liftM (Overflow) . newTBMChan
 
 sourceBuffer :: MonadIO m => Buffer a -> Source m a
 sourceBuffer buf =
@@ -57,7 +58,8 @@ sinkBuffer buf =
                          (liftSTM $ closeBuffer buf)
 
 revertBuffer :: Buffer a -> a -> STM ()
-revertBuffer (Buffer _block chan) val = do
+revertBuffer (Unbounded chan) val = unGetTMChan chan val
+revertBuffer (Overflow chan) val  = do
     closed <- isClosedTBMChan chan
     unless closed $ do
         slots <- estimateFreeSlotsTBMChan chan
@@ -71,19 +73,19 @@ liftSTM = liftIO . atomically
 --
 
 readBuffer :: Buffer a -> STM (Maybe a)
-readBuffer (Buffer _block chan) = readTBMChan chan
+readBuffer (Unbounded chan) = readTMChan chan
+readBuffer (Overflow chan)  = readTBMChan chan
 
 writeBuffer :: Buffer a -> a -> STM ()
-writeBuffer buf@(Buffer block chan) val = do
+writeBuffer (Unbounded chan) val    = writeTMChan chan val
+writeBuffer buf@(Overflow chan) val = do
     closed <- isClosedTBMChan chan
     unless closed $ do
         slots <- estimateFreeSlotsTBMChan chan
         if slots <= 0
-            then flush
+            then tryReadTBMChan chan >> writeBuffer buf val
             else writeTBMChan chan val
-  where
-    flush | block     = tryReadTBMChan chan >> writeBuffer buf val
-          | otherwise = retry
 
 closeBuffer :: Buffer a -> STM ()
-closeBuffer (Buffer _block chan) = closeTBMChan chan
+closeBuffer (Unbounded chan) = closeTMChan chan
+closeBuffer (Overflow chan)  = closeTBMChan chan

@@ -24,7 +24,7 @@ main = do
     opts@Options{..} <- parseOptions
     print opts
 
-    raw    <- atomically $ newBounded optParseBuffer
+    raw    <- atomically newUnbounded
     events <- atomically $ newOverflow optDeliverBuffer
 
     _ <- forkIO . runResourceT $ sinkEvents opts events
