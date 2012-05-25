@@ -62,9 +62,17 @@ sinkAMQP conn =
 --
 
 exchange :: Service -> ExchangeOpts
-exchange serv = newExchange { exchangeName    = C.unpack serv
-                            , exchangeType    = "topic"
-                            , exchangeDurable = True }
+exchange serv = newExchange
+    { exchangeName    = C.unpack serv
+    , exchangeType    = "topic"
+    , exchangeDurable = True
+    }
+
+queue :: String -> QueueOpts
+queue name = newQueue
+    { queueName    = bndQueue
+    , queueDurable = True
+    }
 
 connect :: URI -> Int -> Host -> Service -> IO AMQPConn
 connect URI{..} delay host serv =
@@ -95,14 +103,12 @@ declare conn@AMQPConn{..} msg@Event{..} = do
 
 bind :: AMQPConn -> Event -> CacheKey -> IO Binding
 bind AMQPConn{..} evt idx = do
-    _ <- declareQueue amqpChan opts
+    _ <- declareQueue amqpChan $ queue bndQueue
     _ <- bindQueue amqpChan bndQueue bndExchange bndWildCard
     H.insert amqpCache idx bnd
     return bnd
   where
     bnd@Binding{..} = fromEvent evt amqpHost amqpService
-    opts = newQueue { queueName    = bndQueue
-                    , queueDurable = True }
 
 publish :: AMQPConn -> Event -> IO ()
 publish conn@AMQPConn{..} msg = do
